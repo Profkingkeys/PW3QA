@@ -1,0 +1,8 @@
+{
+  "name": "profkingkeys-qa-tutorial",
+  "version": "1.0.0",
+  "description": "Profkingkeys Q&A Tutorial - Netlify Functions",
+  "dependencies": {
+    "openai": "^4.47.0"
+  }
+}
