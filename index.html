@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profkingkeys Q&A Tutorial</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#08090d;--bg2:#0e1018;--panel:#111420;--panel2:#161924;
+  --border:#1e2235;--border2:#252a3d;
+  --gold:#f0b429;--gold2:#ffd166;--gold3:#c88400;
+  --blue:#4d9eff;--green:#22d37a;--red:#ff4d4d;--purple:#c084fc;
+  --cyan:#06d6d6;--orange:#ff8500;
+  --white:#f0f2ff;--text:#9aa5c4;--muted:#4a5270;
+  --obj:#4d9eff;--sub:#22d37a;--thy:#c084fc;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;}
+body{overflow-x:hidden;}
+
+/* SCREENS */
+.screen{display:none;min-height:100vh;flex-direction:column;}
+.screen.active{display:flex;}
+
+/* ═══════ UPLOAD SCREEN ═══════ */
+#uploadScreen{
+  align-items:center;justify-content:center;padding:24px;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% -5%, rgba(77,158,255,0.08),transparent 55%),
+    radial-gradient(ellipse 40% 40% at 90% 80%, rgba(192,132,252,0.06),transparent 55%),var(--bg);
+}
+.upload-box{width:100%;max-width:680px;}
+.upload-crown{font-size:64px;text-align:center;margin-bottom:12px;animation:float 4s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
+.upload-title{
+  font-size:clamp(22px,4vw,38px);font-weight:800;text-align:center;
+  background:linear-gradient(120deg,var(--gold2),var(--gold),var(--gold3));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  margin-bottom:6px;line-height:1.2;
+}
+.upload-sub{text-align:center;color:var(--muted);font-size:13px;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:28px;}
+
+.input-area{
+  background:var(--panel);border:2px solid var(--border);border-radius:18px;
+  padding:20px;margin-bottom:16px;
+}
+.input-area label{display:block;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.12em;margin-bottom:10px;}
+textarea#bookInput{
+  width:100%;min-height:220px;background:var(--bg2);border:1px solid var(--border2);
+  border-radius:12px;padding:16px;
+  font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--white);
+  resize:vertical;outline:none;line-height:1.7;
+  transition:border-color 0.2s;
+}
+textarea#bookInput:focus{border-color:var(--blue);}
+textarea#bookInput::placeholder{color:var(--muted);}
+
+.options-row{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.option-chip{
+  flex:1;min-width:140px;padding:14px 16px;background:var(--panel);
+  border:2px solid var(--border);border-radius:14px;cursor:pointer;transition:all 0.15s;text-align:center;
+}
+.option-chip:hover{border-color:var(--blue);}
+.option-chip.sel{border-color:var(--gold);background:rgba(240,180,41,0.07);}
+.option-chip h4{font-size:13px;font-weight:700;color:var(--white);margin-bottom:4px;}
+.option-chip p{font-size:11px;color:var(--muted);}
+
+.btn-generate{
+  width:100%;padding:18px;border-radius:14px;border:none;cursor:pointer;
+  background:linear-gradient(135deg,var(--gold3),var(--gold),var(--gold2));
+  color:#0a0800;font-family:'Sora',sans-serif;font-size:15px;font-weight:800;
+  letter-spacing:0.05em;text-transform:uppercase;
+  box-shadow:0 4px 30px rgba(240,180,41,0.3);
+  transition:all 0.2s;
+}
+.btn-generate:hover{transform:translateY(-2px);box-shadow:0 8px 40px rgba(240,180,41,0.5);}
+.btn-generate:disabled{opacity:0.4;cursor:not-allowed;transform:none;}
+
+.status-box{
+  margin-top:14px;padding:14px 18px;border-radius:12px;
+  background:var(--panel);border:1px solid var(--border);
+  font-size:13px;display:none;
+}
+.status-box.show{display:block;}
+.status-box.error{border-color:var(--red);color:var(--red);}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--border2);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;margin-right:8px;vertical-align:middle;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ═══════ TRAINING SCREEN ═══════ */
+#trainingScreen{background:var(--bg);}
+.topbar{
+  background:var(--panel);border-bottom:1px solid var(--border);
+  padding:0 20px;height:56px;display:flex;align-items:center;gap:14px;
+  position:sticky;top:0;z-index:50;
+}
+.topbar-title{font-size:14px;font-weight:700;color:var(--gold);white-space:nowrap;}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.badge{padding:5px 12px;border-radius:20px;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;letter-spacing:0.06em;}
+.badge-mode{background:rgba(192,132,252,0.12);color:var(--purple);border:1px solid rgba(192,132,252,0.25);}
+.badge-prog{background:rgba(77,158,255,0.1);color:var(--blue);border:1px solid rgba(77,158,255,0.2);}
+
+.training-main{flex:1;max-width:760px;margin:0 auto;padding:32px 20px;width:100%;}
+.training-header{text-align:center;margin-bottom:28px;}
+.training-header h2{font-size:24px;font-weight:800;color:var(--white);margin-bottom:8px;}
+.training-header p{color:var(--muted);font-size:14px;line-height:1.6;}
+
+.training-card{
+  background:var(--panel);border:1px solid var(--border);border-radius:20px;
+  padding:28px;margin-bottom:16px;position:relative;overflow:hidden;
+}
+.training-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,currentColor,transparent);opacity:0.5;}
+.training-card.obj{color:var(--obj);}
+.training-card.sub{color:var(--sub);}
+.training-card.thy{color:var(--thy);}
+.type-badge{
+  display:inline-block;padding:4px 12px;border-radius:20px;
+  font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
+  margin-bottom:14px;
+}
+.type-badge.obj{background:rgba(77,158,255,0.12);color:var(--obj);border:1px solid rgba(77,158,255,0.25);}
+.type-badge.sub{background:rgba(34,211,122,0.12);color:var(--sub);border:1px solid rgba(34,211,122,0.25);}
+.type-badge.thy{background:rgba(192,132,252,0.12);color:var(--thy);border:1px solid rgba(192,132,252,0.25);}
+.q-num{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:8px;}
+.q-text{font-size:16px;font-weight:600;color:var(--white);line-height:1.6;margin-bottom:16px;}
+.answer-reveal{
+  background:var(--bg2);border:1px solid var(--border2);border-radius:12px;
+  padding:14px 16px;margin-top:10px;
+}
+.answer-reveal h4{font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;}
+.answer-reveal p{font-size:14px;color:var(--white);line-height:1.7;}
+.answer-reveal .options-list{margin-top:8px;}
+.answer-reveal .opt-item{padding:6px 10px;border-radius:8px;font-size:13px;margin-bottom:4px;}
+.answer-reveal .opt-item.correct{background:rgba(34,211,122,0.12);color:var(--green);font-weight:600;}
+.answer-reveal .opt-item.other{color:var(--muted);}
+
+.speak-btn{
+  background:transparent;border:1px solid var(--border2);color:var(--muted);
+  padding:6px 14px;border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;
+  transition:all 0.15s;margin-top:10px;
+}
+.speak-btn:hover{border-color:var(--cyan);color:var(--cyan);}
+.speak-btn.active{border-color:var(--cyan);color:var(--cyan);background:rgba(6,214,214,0.1);}
+
+.training-nav{
+  display:flex;gap:10px;justify-content:center;margin-top:24px;flex-wrap:wrap;
+}
+.btn-nav{
+  padding:12px 28px;border-radius:10px;border:none;cursor:pointer;
+  font-family:'Sora',sans-serif;font-size:13px;font-weight:700;transition:all 0.15s;
+}
+.btn-prev{background:var(--panel);border:1px solid var(--border);color:var(--text);}
+.btn-prev:hover{border-color:var(--blue);color:var(--blue);}
+.btn-next-tr{background:var(--blue);color:#fff;}
+.btn-next-tr:hover{background:#3d8df0;}
+.btn-autoplay{background:var(--panel);border:1px solid var(--border);color:var(--purple);}
+.btn-autoplay.active{background:rgba(192,132,252,0.1);border-color:var(--purple);}
+
+.start-quiz-wrap{
+  background:linear-gradient(135deg,rgba(240,180,41,0.08),rgba(192,132,252,0.05));
+  border:1px solid rgba(240,180,41,0.2);border-radius:20px;
+  padding:32px;text-align:center;margin-top:20px;
+}
+.start-quiz-wrap h3{font-size:22px;font-weight:800;color:var(--gold);margin-bottom:8px;}
+.start-quiz-wrap p{color:var(--muted);font-size:14px;margin-bottom:20px;}
+.btn-start-quiz{
+  padding:16px 48px;border-radius:12px;border:none;cursor:pointer;
+  background:linear-gradient(135deg,var(--gold3),var(--gold));
+  color:#0a0800;font-family:'Sora',sans-serif;font-size:15px;font-weight:800;
+  letter-spacing:0.05em;box-shadow:0 4px 24px rgba(240,180,41,0.35);
+  transition:all 0.2s;
+}
+.btn-start-quiz:hover{transform:translateY(-2px);box-shadow:0 8px 36px rgba(240,180,41,0.5);}
+
+/* ═══════ QUIZ SCREEN ═══════ */
+#quizScreen{background:var(--bg);}
+.quiz-main{flex:1;max-width:760px;margin:0 auto;padding:28px 20px;width:100%;}
+
+.stage-bar{
+  display:flex;gap:4px;margin-bottom:24px;
+}
+.stage-pip{
+  flex:1;height:5px;border-radius:3px;background:var(--border);transition:background 0.3s;
+}
+.stage-pip.done{background:var(--green);}
+.stage-pip.current{background:var(--gold);animation:pipGlow 1.5s ease-in-out infinite alternate;}
+@keyframes pipGlow{from{opacity:0.7;}to{opacity:1;box-shadow:0 0 8px var(--gold);}}
+
+.quiz-card{
+  background:var(--panel);border:1px solid var(--border);border-radius:20px;
+  padding:30px 28px;position:relative;overflow:hidden;
+  animation:cardIn 0.3s ease;
+}
+@keyframes cardIn{from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:translateX(0);}}
+.quiz-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,currentColor,transparent);opacity:0.5;}
+.quiz-card.obj{color:var(--obj);}
+.quiz-card.sub{color:var(--sub);}
+.quiz-card.thy{color:var(--thy);}
+
+.q-header{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+.speak-q-btn{
+  background:var(--bg2);border:1px solid var(--border2);color:var(--cyan);
+  width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:16px;
+  display:flex;align-items:center;justify-content:center;transition:all 0.15s;
+  flex-shrink:0;
+}
+.speak-q-btn:hover{background:rgba(6,214,214,0.1);}
+
+/* OBJECTIVE */
+.options-grid{display:flex;flex-direction:column;gap:10px;margin-top:16px;}
+.opt-btn{
+  padding:14px 18px;background:var(--bg2);border:2px solid var(--border2);
+  border-radius:12px;cursor:pointer;text-align:left;
+  font-family:'Sora',sans-serif;font-size:14px;color:var(--text);
+  transition:all 0.15s;display:flex;align-items:center;gap:12px;
+}
+.opt-btn:hover:not(:disabled){border-color:var(--blue);color:var(--white);}
+.opt-letter{
+  width:28px;height:28px;border-radius:6px;background:var(--border2);
+  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;
+}
+.opt-btn.correct{border-color:var(--green);background:rgba(34,211,122,0.08);color:var(--green);}
+.opt-btn.correct .opt-letter{background:var(--green);color:#fff;}
+.opt-btn.wrong{border-color:var(--red);background:rgba(255,77,77,0.08);color:var(--red);}
+.opt-btn.wrong .opt-letter{background:var(--red);color:#fff;}
+.opt-btn:disabled{cursor:default;}
+
+/* SUBJECTIVE */
+.fill-wrap{margin-top:16px;}
+.fill-input{
+  width:100%;padding:15px 18px;background:var(--bg2);border:2px solid var(--border2);
+  border-radius:12px;font-family:'Sora',sans-serif;font-size:15px;font-weight:600;
+  color:var(--white);outline:none;transition:border-color 0.2s;
+}
+.fill-input:focus{border-color:var(--green);}
+.fill-input.correct{border-color:var(--green);background:rgba(34,211,122,0.06);}
+.fill-input.wrong{border-color:var(--red);background:rgba(255,77,77,0.06);}
+.btn-check{
+  margin-top:10px;padding:12px 28px;border-radius:10px;border:none;cursor:pointer;
+  background:var(--green);color:#022210;font-family:'Sora',sans-serif;
+  font-size:13px;font-weight:700;transition:all 0.15s;
+}
+.btn-check:hover{background:#1abc6a;}
+.btn-check:disabled{opacity:0.4;cursor:default;}
+
+/* THEORY */
+.theory-wrap{margin-top:16px;}
+.theory-textarea{
+  width:100%;min-height:120px;padding:15px 18px;background:var(--bg2);
+  border:2px solid var(--border2);border-radius:12px;
+  font-family:'Sora',sans-serif;font-size:14px;color:var(--white);
+  resize:vertical;outline:none;transition:border-color 0.2s;line-height:1.7;
+}
+.theory-textarea:focus{border-color:var(--purple);}
+.theory-textarea.good{border-color:var(--green);}
+.theory-textarea.poor{border-color:var(--orange);}
+.theory-textarea.wrong{border-color:var(--red);}
+
+/* Feedback panel */
+.feedback-panel{
+  margin-top:16px;padding:16px 18px;border-radius:14px;display:none;
+}
+.feedback-panel.show{display:block;animation:feedIn 0.3s ease;}
+@keyframes feedIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+.feedback-panel.correct{background:rgba(34,211,122,0.08);border:1px solid rgba(34,211,122,0.25);}
+.feedback-panel.partial{background:rgba(255,133,0,0.08);border:1px solid rgba(255,133,0,0.25);}
+.feedback-panel.wrong{background:rgba(255,77,77,0.08);border:1px solid rgba(255,77,77,0.25);}
+.fb-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;}
+.feedback-panel.correct .fb-title{color:var(--green);}
+.feedback-panel.partial .fb-title{color:var(--orange);}
+.feedback-panel.wrong .fb-title{color:var(--red);}
+.fb-answer{font-size:14px;color:var(--white);line-height:1.7;}
+.fb-keywords{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;}
+.kw-tag{padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600;}
+.kw-tag.hit{background:rgba(34,211,122,0.15);color:var(--green);border:1px solid rgba(34,211,122,0.3);}
+.kw-tag.miss{background:rgba(255,77,77,0.1);color:var(--red);border:1px solid rgba(255,77,77,0.2);}
+
+.btn-next-q{
+  margin-top:16px;width:100%;padding:14px;border-radius:12px;border:none;cursor:pointer;
+  background:linear-gradient(135deg,var(--blue),#3d8df0);color:#fff;
+  font-family:'Sora',sans-serif;font-size:14px;font-weight:700;
+  transition:all 0.2s;display:none;
+}
+.btn-next-q.show{display:block;}
+.btn-next-q:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(77,158,255,0.4);}
+
+/* STAGE COMPLETE */
+.stage-complete-overlay{
+  position:fixed;inset:0;background:rgba(8,9,13,0.96);z-index:200;
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:24px;
+}
+.stage-complete-overlay.show{display:flex;}
+.sc-icon{font-size:80px;margin-bottom:16px;animation:float 3s ease-in-out infinite;}
+.sc-title{font-size:clamp(24px,4vw,40px);font-weight:800;color:var(--gold);margin-bottom:10px;}
+.sc-stats{display:flex;gap:16px;justify-content:center;margin:20px 0;flex-wrap:wrap;}
+.sc-stat{padding:16px 24px;background:var(--panel);border:1px solid var(--border);border-radius:14px;min-width:100px;}
+.sc-stat-num{font-size:28px;font-weight:800;font-family:'JetBrains Mono',monospace;}
+.sc-stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-top:4px;}
+.sc-actions{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:8px;}
+
+/* confetti */
+.confetti-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:201;}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     SCREEN 1: UPLOAD / GENERATE
+═══════════════════════════════════════ -->
+<div id="uploadScreen" class="screen active">
+  <div class="upload-box">
+    <div class="upload-crown">👑</div>
+    <div class="upload-title">Profkingkeys Q&A Tutorial</div>
+    <div class="upload-sub">AI-Powered Pharmacy Study Game</div>
+
+    <div class="input-area">
+      <label for="bookInput">📚 Paste your book content, notes, or existing Q&A pairs below</label>
+      <textarea id="bookInput" placeholder="Paste your lecture notes, textbook chapters, or existing Q&A here...
+
+The AI will generate 300 exam-style questions:
+• 100 Objective (Multiple Choice)
+• 100 Subjective (Fill in the Gap)
+• 100 Theory (Keyword-based answers)
+
+You can also paste existing Q&A — the AI will structure them into the game automatically."></textarea>
+    </div>
+
+    <div class="options-row">
+      <div class="option-chip sel" data-mode="exam" onclick="selMode(this)">
+        <h4>📝 Exam Mode</h4>
+        <p>Questions typical of your upcoming exam</p>
+      </div>
+      <div class="option-chip" data-mode="revision" onclick="selMode(this)">
+        <h4>🔄 Revision Mode</h4>
+        <p>Cover full breadth of the pasted content</p>
+      </div>
+    </div>
+
+    <button class="btn-generate" id="genBtn" onclick="generateQuestions()">
+      🚀 GENERATE 300 QUESTIONS WITH AI
+    </button>
+
+    <div class="status-box" id="statusBox">
+      <span class="spinner"></span>
+      <span id="statusText">Sending content to AI... This may take 30–60 seconds.</span>
+    </div>
+
+    <div style="margin-top:16px;padding:14px;background:var(--panel);border:1px solid var(--border);border-radius:12px;font-size:12px;color:var(--muted);line-height:1.7;">
+      ⚙️ <b style="color:var(--text)">Setup required:</b> Deploy this on Netlify with a <code style="color:var(--cyan)">netlify/functions/generate-questions.js</code> file and set <code style="color:var(--cyan)">NVIDIA_API_KEY</code> in your Netlify environment variables.<br>
+      See the included <code style="color:var(--gold)">netlify_function.js</code> and <code style="color:var(--gold)">.env.example</code> files.
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SCREEN 2: TRAINING MODE
+═══════════════════════════════════════ -->
+<div id="trainingScreen" class="screen">
+  <div class="topbar">
+    <div class="topbar-title">👑 Profkingkeys Q&A</div>
+    <div class="topbar-right">
+      <div class="badge badge-mode">📖 TRAINING MODE</div>
+      <div class="badge badge-prog" id="trProg">1 / 300</div>
+      <button class="btn-nav btn-prev" style="padding:6px 14px;font-size:12px;" onclick="goHome()">⌂ Home</button>
+    </div>
+  </div>
+  <div class="training-main">
+    <div class="training-header">
+      <h2>📖 Study Training Mode</h2>
+      <p>The British AI speaker will read each question and answer to prepare you.<br>
+         Go through all 300, then start the Quiz when you're ready!</p>
+    </div>
+
+    <div id="trainingCard"></div>
+
+    <div class="training-nav">
+      <button class="btn-nav btn-prev" onclick="trNav(-1)">← Previous</button>
+      <button class="btn-nav btn-autoplay" id="autoplayBtn" onclick="toggleAutoplay()">▶ Auto-Read</button>
+      <button class="btn-nav btn-next-tr" onclick="trNav(1)">Next →</button>
+    </div>
+
+    <div class="start-quiz-wrap" id="startQuizWrap" style="display:none;">
+      <h3>🎯 Ready to Test Yourself?</h3>
+      <p>You've reviewed all questions! Time to see how much you remember.<br>3 stages × 100 questions each.</p>
+      <button class="btn-start-quiz" onclick="startQuiz()">START QUIZ →</button>
+    </div>
+    <div style="text-align:center;margin-top:14px;">
+      <button class="btn-start-quiz" style="padding:12px 32px;font-size:13px;" onclick="startQuiz()">
+        Skip Training → Start Quiz
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SCREEN 3: QUIZ MODE
+═══════════════════════════════════════ -->
+<div id="quizScreen" class="screen">
+  <div class="topbar">
+    <div class="topbar-title">👑 Profkingkeys Q&A</div>
+    <div class="topbar-right">
+      <div class="badge badge-mode" id="quizStageBadge">STAGE 1</div>
+      <div class="badge badge-prog" id="quizProg">Q 1/100</div>
+      <div class="badge" style="background:rgba(34,211,122,0.1);color:var(--green);border:1px solid rgba(34,211,122,0.2);" id="quizScore">✓ 0</div>
+      <button class="btn-nav btn-prev" style="padding:6px 14px;font-size:12px;" onclick="goHome()">⌂ Home</button>
+    </div>
+  </div>
+  <div class="quiz-main">
+    <div class="stage-bar" id="stageBar"></div>
+    <div id="quizCard"></div>
+    <button class="btn-next-q" id="nextQBtn" onclick="nextQuestion()">NEXT QUESTION →</button>
+  </div>
+</div>
+
+<!-- Stage Complete -->
+<div class="stage-complete-overlay" id="stageCompleteOverlay">
+  <canvas class="confetti-canvas" id="confettiCanvas"></canvas>
+  <div style="position:relative;z-index:202;">
+    <div class="sc-icon">🎉</div>
+    <div class="sc-title" id="scTitle">Stage 1 Complete!</div>
+    <p style="color:var(--muted);margin-bottom:16px;" id="scSub"></p>
+    <div class="sc-stats" id="scStats"></div>
+    <div class="sc-actions">
+      <button class="btn-start-quiz" id="scNextBtn" onclick="nextStage()">NEXT STAGE →</button>
+      <button class="btn-nav btn-prev" onclick="goTraining()">← Back to Training</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//   STATE
+// ═══════════════════════════════════════════════
+let allQuestions = [];    // 300 questions
+let stageQuestions = [];  // current stage (100 shuffled)
+let qIndex = 0;
+let stageIndex = 0;
+let stageCorrect = 0;
+let totalCorrect = 0;
+let trIndex = 0;
+let genMode = 'exam';
+let autoplayTimer = null;
+let speaking = false;
+
+// ═══════════════════════════════════════════════
+//   SCREEN MANAGEMENT
+// ═══════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function goHome() {
+  speechSynthesis.cancel();
+  showScreen('uploadScreen');
+}
+function goTraining() {
+  document.getElementById('stageCompleteOverlay').classList.remove('show');
+  showScreen('trainingScreen');
+}
+
+// ═══════════════════════════════════════════════
+//   MODE SELECT
+// ═══════════════════════════════════════════════
+function selMode(el) {
+  document.querySelectorAll('.option-chip').forEach(c => c.classList.remove('sel'));
+  el.classList.add('sel');
+  genMode = el.dataset.mode;
+}
+
+// ═══════════════════════════════════════════════
+//   GENERATE QUESTIONS (via Netlify Function)
+// ═══════════════════════════════════════════════
+async function generateQuestions() {
+  const content = document.getElementById('bookInput').value.trim();
+  if (!content || content.length < 50) {
+    alert('Please paste your book content or notes first.');
+    return;
+  }
+  const btn = document.getElementById('genBtn');
+  const status = document.getElementById('statusBox');
+  btn.disabled = true;
+  status.classList.add('show');
+  status.className = 'status-box show';
+  document.getElementById('statusText').textContent = 'Connecting to AI... Please wait (30–90s for 300 questions).';
+
+  try {
+    const resp = await fetch('/.netlify/functions/generate-questions', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ content, mode: genMode })
+    });
+    if (!resp.ok) {
+      const err = await resp.text();
+      throw new Error(err || 'API request failed');
+    }
+    const data = await resp.json();
+    if (!data.questions || !Array.isArray(data.questions)) throw new Error('Invalid response format');
+    allQuestions = data.questions;
+    document.getElementById('statusText').textContent = `✅ Generated ${allQuestions.length} questions! Loading training mode...`;
+    setTimeout(() => {
+      trIndex = 0;
+      renderTrainingCard();
+      showScreen('trainingScreen');
+    }, 800);
+  } catch (e) {
+    status.className = 'status-box show error';
+    document.getElementById('statusText').textContent = '❌ Error: ' + e.message + '. Check your Netlify function and API key.';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ═══════════════════════════════════════════════
+//   BRITISH TTS
+// ═══════════════════════════════════════════════
+function getBritishVoice() {
+  const voices = speechSynthesis.getVoices();
+  return voices.find(v => v.lang === 'en-GB' && v.name.includes('Google')) ||
+         voices.find(v => v.lang === 'en-GB') ||
+         voices.find(v => v.lang.startsWith('en'));
+}
+
+function speak(text, onEnd) {
+  speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(text);
+  const voice = getBritishVoice();
+  if (voice) utt.voice = voice;
+  utt.rate = 0.92;
+  utt.pitch = 1.05;
+  utt.volume = 1;
+  utt.lang = 'en-GB';
+  if (onEnd) utt.onend = onEnd;
+  speechSynthesis.speak(utt);
+}
+
+function speakQA(q) {
+  let text = `Question. ${q.question}. `;
+  if (q.type === 'objective') {
+    text += 'Options: ';
+    q.options.forEach((o, i) => { text += ['A','B','C','D'][i] + '. ' + o + '. '; });
+    text += `The correct answer is ${q.answer}. ${q.explanation}`;
+  } else if (q.type === 'subjective') {
+    text += `The answer is: ${q.answer}.`;
+  } else {
+    text += `Answer: ${q.answer}.`;
+  }
+  speak(text);
+}
+
+speechSynthesis.onvoiceschanged = () => {};
+
+// ═══════════════════════════════════════════════
+//   TRAINING MODE
+// ═══════════════════════════════════════════════
+function renderTrainingCard() {
+  const q = allQuestions[trIndex];
+  const prog = `${trIndex + 1} / ${allQuestions.length}`;
+  document.getElementById('trProg').textContent = prog;
+  const typeClass = q.type === 'objective' ? 'obj' : q.type === 'subjective' ? 'sub' : 'thy';
+  const typeLabel = q.type === 'objective' ? '🔵 Objective (MCQ)' : q.type === 'subjective' ? '🟢 Subjective (Fill)' : '🟣 Theory';
+
+  let answerHTML = '';
+  if (q.type === 'objective') {
+    const letters = ['A','B','C','D'];
+    const optItems = q.options.map((o, i) =>
+      `<div class="opt-item ${o === q.answer ? 'correct' : 'other'}">${letters[i]}. ${o}${o === q.answer ? ' ✓' : ''}</div>`
+    ).join('');
+    answerHTML = `<div class="options-list">${optItems}</div><p style="margin-top:10px;font-size:13px;color:var(--text);">💡 ${q.explanation}</p>`;
+  } else {
+    answerHTML = `<p>${q.answer}</p>`;
+  }
+
+  document.getElementById('trainingCard').innerHTML = `
+    <div class="training-card ${typeClass}">
+      <div class="type-badge ${typeClass}">${typeLabel}</div>
+      <div class="q-num">Question ${trIndex + 1} of ${allQuestions.length}</div>
+      <div class="q-text">${q.question}</div>
+      <div class="answer-reveal">
+        <h4>✅ Answer</h4>
+        ${answerHTML}
+      </div>
+      <button class="speak-btn" onclick="speakQA(allQuestions[${trIndex}])">🔊 Read Aloud (British)</button>
+    </div>
+  `;
+
+  const startWrap = document.getElementById('startQuizWrap');
+  startWrap.style.display = trIndex >= allQuestions.length - 1 ? 'block' : 'none';
+
+  // Auto-speak in training
+  speakQA(q);
+}
+
+function trNav(dir) {
+  speechSynthesis.cancel();
+  trIndex = Math.max(0, Math.min(allQuestions.length - 1, trIndex + dir));
+  renderTrainingCard();
+}
+
+function toggleAutoplay() {
+  const btn = document.getElementById('autoplayBtn');
+  if (autoplayTimer) {
+    clearTimeout(autoplayTimer);
+    autoplayTimer = null;
+    speechSynthesis.cancel();
+    btn.textContent = '▶ Auto-Read';
+    btn.classList.remove('active');
+  } else {
+    btn.textContent = '⏹ Stop Auto';
+    btn.classList.add('active');
+    autoplayNext();
+  }
+}
+
+function autoplayNext() {
+  const q = allQuestions[trIndex];
+  let text = `Question ${trIndex+1}. ${q.question}. Answer: `;
+  if (q.type === 'objective') text += q.answer + '. ' + q.explanation;
+  else text += q.answer;
+  speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(text);
+  const v = getBritishVoice(); if (v) utt.voice = v;
+  utt.rate = 0.92; utt.lang = 'en-GB';
+  utt.onend = () => {
+    if (!autoplayTimer) return;
+    if (trIndex < allQuestions.length - 1) {
+      autoplayTimer = setTimeout(() => { trIndex++; renderTrainingCard(); autoplayNext(); }, 800);
+    } else {
+      document.getElementById('autoplayBtn').textContent = '▶ Auto-Read';
+      document.getElementById('autoplayBtn').classList.remove('active');
+      autoplayTimer = null;
+    }
+  };
+  speechSynthesis.speak(utt);
+  autoplayTimer = true; // flag that it's active
+}
+
+// ═══════════════════════════════════════════════
+//   QUIZ MODE
+// ═══════════════════════════════════════════════
+function startQuiz() {
+  speechSynthesis.cancel();
+  stageIndex = 0;
+  totalCorrect = 0;
+  loadStage();
+  showScreen('quizScreen');
+}
+
+function loadStage() {
+  // Shuffle all questions and pick 100 per stage
+  const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
+  const start = stageIndex * 100;
+  stageQuestions = shuffled.slice(start, start + 100);
+  qIndex = 0;
+  stageCorrect = 0;
+  updateStageBar();
+  document.getElementById('quizStageBadge').textContent = `STAGE ${stageIndex + 1}`;
+  renderQuestion();
+}
+
+function updateStageBar() {
+  const bar = document.getElementById('stageBar');
+  bar.innerHTML = stageQuestions.map((_, i) =>
+    `<div class="stage-pip ${i < qIndex ? 'done' : i === qIndex ? 'current' : ''}"></div>`
+  ).join('');
+}
+
+function renderQuestion() {
+  const q = stageQuestions[qIndex];
+  document.getElementById('quizProg').textContent = `Q ${qIndex+1}/100`;
+  document.getElementById('quizScore').textContent = `✓ ${stageCorrect}`;
+  document.getElementById('nextQBtn').classList.remove('show');
+  updateStageBar();
+
+  const typeClass = q.type === 'objective' ? 'obj' : q.type === 'subjective' ? 'sub' : 'thy';
+  const typeLabel = q.type === 'objective' ? '🔵 Objective' : q.type === 'subjective' ? '🟢 Subjective' : '🟣 Theory';
+
+  let bodyHTML = '';
+
+  if (q.type === 'objective') {
+    const letters = ['A','B','C','D'];
+    bodyHTML = `
+      <div class="options-grid">
+        ${q.options.map((o,i)=>`
+          <button class="opt-btn" onclick="checkObjective(this,'${escapeAttr(o)}','${escapeAttr(q.answer)}','${escapeAttr(q.explanation)}')">
+            <div class="opt-letter">${letters[i]}</div>
+            <span>${o}</span>
+          </button>
+        `).join('')}
+      </div>
+    `;
+  } else if (q.type === 'subjective') {
+    bodyHTML = `
+      <div class="fill-wrap">
+        <input class="fill-input" id="fillInput" placeholder="Type your answer here..." autocomplete="off" spellcheck="false"
+          onkeydown="if(event.key==='Enter') checkSubjective()"/>
+        <br/>
+        <button class="btn-check" id="checkSubjBtn" onclick="checkSubjective()">CHECK ANSWER</button>
+      </div>
+    `;
+  } else {
+    bodyHTML = `
+      <div class="theory-wrap">
+        <textarea class="theory-textarea" id="theoryInput" placeholder="Write your answer here. Key concepts will be checked..."></textarea>
+        <br/>
+        <button class="btn-check" id="checkThyBtn" onclick="checkTheory()">CHECK ANSWER</button>
+      </div>
+    `;
+  }
+
+  document.getElementById('quizCard').innerHTML = `
+    <div class="quiz-card ${typeClass}">
+      <div class="q-header">
+        <div class="type-badge ${typeClass}" style="margin:0;">${typeLabel}</div>
+        <div class="q-num" style="margin:0;flex:1;text-align:right;">Q${qIndex+1} of 100</div>
+        <button class="speak-q-btn" onclick="speak('${escapeAttr(q.question)}')">🔊</button>
+      </div>
+      <div class="q-text">${q.question}</div>
+      ${bodyHTML}
+      <div class="feedback-panel" id="feedbackPanel">
+        <div class="fb-title" id="fbTitle"></div>
+        <div class="fb-answer" id="fbAnswer"></div>
+        <div class="fb-keywords" id="fbKeywords"></div>
+      </div>
+    </div>
+  `;
+
+  // Auto-speak question
+  speak(q.question);
+}
+
+function escapeAttr(str) {
+  return (str||'').replace(/'/g,"&#39;").replace(/"/g,"&quot;").replace(/\n/g,' ');
+}
+
+function checkObjective(btn, chosen, correct, explanation) {
+  const allBtns = document.querySelectorAll('.opt-btn');
+  allBtns.forEach(b => {
+    b.disabled = true;
+    const bText = b.querySelector('span').textContent;
+    if (bText === correct) b.classList.add('correct');
+    else if (b === btn && chosen !== correct) b.classList.add('wrong');
+  });
+  const isCorrect = chosen === correct;
+  if (isCorrect) stageCorrect++;
+  showFeedback(isCorrect ? 'correct' : 'wrong',
+    isCorrect ? '✅ Correct!' : '❌ Incorrect',
+    isCorrect ? `"${correct}" is right! ${explanation}` : `The correct answer is: "${correct}". ${explanation}`
+  );
+  speak(isCorrect ? `Correct! ${explanation}` : `The correct answer is ${correct}. ${explanation}`);
+  document.getElementById('nextQBtn').classList.add('show');
+}
+
+function checkSubjective() {
+  const input = document.getElementById('fillInput');
+  const checkBtn = document.getElementById('checkSubjBtn');
+  if (checkBtn) checkBtn.disabled = true;
+  const q = stageQuestions[qIndex];
+  const typed = input.value.trim().toLowerCase();
+  const correct = q.answer.toLowerCase();
+  const isCorrect = typed === correct || correct.includes(typed) && typed.length > 3;
+  input.className = 'fill-input ' + (isCorrect ? 'correct' : 'wrong');
+  if (isCorrect) stageCorrect++;
+  showFeedback(isCorrect ? 'correct' : 'wrong',
+    isCorrect ? '✅ Correct!' : '❌ The answer is:',
+    isCorrect ? `"${q.answer}" — well done!` : `"${q.answer}"`
+  );
+  speak(isCorrect ? `Correct! The answer is ${q.answer}` : `Incorrect. The correct answer is ${q.answer}`);
+  document.getElementById('nextQBtn').classList.add('show');
+}
+
+function checkTheory() {
+  const ta = document.getElementById('theoryInput');
+  const checkBtn = document.getElementById('checkThyBtn');
+  if (checkBtn) checkBtn.disabled = true;
+  const q = stageQuestions[qIndex];
+  const typed = ta.value.toLowerCase();
+  const keywords = q.keywords || extractKeywords(q.answer);
+  const hitKws = keywords.filter(kw => typed.includes(kw.toLowerCase()));
+  const missKws = keywords.filter(kw => !typed.includes(kw.toLowerCase()));
+  const score = hitKws.length / Math.max(keywords.length, 1);
+  let cls, title, fb;
+  if (score >= 0.7) { cls='correct'; title='✅ Good answer!'; stageCorrect++; }
+  else if (score >= 0.4) { cls='partial'; title='⚠️ Partially correct'; }
+  else { cls='wrong'; title='❌ Key points missed'; }
+  ta.className = 'theory-textarea ' + (cls === 'correct' ? 'good' : cls === 'partial' ? 'poor' : 'wrong');
+
+  const kwHTML = [
+    ...hitKws.map(k=>`<span class="kw-tag hit">✓ ${k}</span>`),
+    ...missKws.map(k=>`<span class="kw-tag miss">✗ ${k}</span>`)
+  ].join('');
+
+  showFeedback(cls, title, `Model answer: ${q.answer}`, kwHTML);
+  speak(cls === 'correct' ? `Good answer! ${q.answer}` : `The model answer is: ${q.answer}`);
+  document.getElementById('nextQBtn').classList.add('show');
+}
+
+function extractKeywords(text) {
+  const stopWords = new Set(['the','a','an','is','are','was','were','be','been','being','have','has','had','do','does','did','will','would','could','should','may','might','shall','can','that','this','these','those','of','in','on','at','to','for','with','by','from','into','as','it','its','and','or','but','not','no','if','then','when','what','how','which','who']);
+  return [...new Set(text.toLowerCase().match(/\b[a-z]{3,}\b/g)||[])]
+    .filter(w => !stopWords.has(w)).slice(0,8);
+}
+
+function showFeedback(cls, title, answer, kwHTML='') {
+  const panel = document.getElementById('feedbackPanel');
+  panel.className = 'feedback-panel show ' + cls;
+  document.getElementById('fbTitle').textContent = title;
+  document.getElementById('fbAnswer').textContent = answer;
+  document.getElementById('fbKeywords').innerHTML = kwHTML;
+}
+
+function nextQuestion() {
+  speechSynthesis.cancel();
+  qIndex++;
+  if (qIndex >= stageQuestions.length) {
+    showStageComplete();
+  } else {
+    renderQuestion();
+  }
+}
+
+// ═══════════════════════════════════════════════
+//   STAGE COMPLETE
+// ═══════════════════════════════════════════════
+function showStageComplete() {
+  totalCorrect += stageCorrect;
+  const pct = Math.round((stageCorrect / 100) * 100);
+  document.getElementById('scTitle').textContent = `Stage ${stageIndex+1} Complete!`;
+  document.getElementById('scSub').textContent =
+    stageIndex < 2
+      ? `Moving to Stage ${stageIndex+2} next!`
+      : '🏆 All 3 Stages Complete! You are a Profkingkeys Master!';
+  document.getElementById('scStats').innerHTML = `
+    <div class="sc-stat"><div class="sc-stat-num" style="color:var(--green)">${stageCorrect}</div><div class="sc-stat-label">Correct</div></div>
+    <div class="sc-stat"><div class="sc-stat-num" style="color:var(--red)">${100-stageCorrect}</div><div class="sc-stat-label">Wrong</div></div>
+    <div class="sc-stat"><div class="sc-stat-num" style="color:var(--gold)">${pct}%</div><div class="sc-stat-label">Score</div></div>
+    <div class="sc-stat"><div class="sc-stat-num" style="color:var(--blue)">${totalCorrect}</div><div class="sc-stat-label">Total Correct</div></div>
+  `;
+  const nextBtn = document.getElementById('scNextBtn');
+  if (stageIndex >= 2) {
+    nextBtn.textContent = '⌂ Home';
+    nextBtn.onclick = goHome;
+  } else {
+    nextBtn.textContent = `STAGE ${stageIndex+2} →`;
+    nextBtn.onclick = nextStage;
+  }
+  document.getElementById('stageCompleteOverlay').classList.add('show');
+  spawnConfetti();
+  speak(pct >= 70
+    ? `Excellent! Stage ${stageIndex+1} complete with ${pct} percent! Moving to the next stage.`
+    : `Stage ${stageIndex+1} complete. You scored ${pct} percent. Keep practising!`
+  );
+}
+
+function nextStage() {
+  document.getElementById('stageCompleteOverlay').classList.remove('show');
+  stageIndex++;
+  loadStage();
+}
+
+// ═══════════════════════════════════════════════
+//   CONFETTI
+// ═══════════════════════════════════════════════
+function spawnConfetti() {
+  const canvas = document.getElementById('confettiCanvas');
+  canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+  const ctx = canvas.getContext('2d');
+  const colors = ['#f0b429','#4d9eff','#c084fc','#22d37a','#ff8500','#fff'];
+  const pts = Array.from({length:100},()=>({
+    x:Math.random()*canvas.width, y:-20-Math.random()*200,
+    r:3+Math.random()*6, speed:1.2+Math.random()*2.5,
+    color:colors[Math.floor(Math.random()*colors.length)],
+    angle:Math.random()*Math.PI*2,
+  }));
+  let f=0;
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    pts.forEach(p=>{p.y+=p.speed;p.x+=Math.sin(p.angle+=0.04)*1.5;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fillStyle=p.color;ctx.fill();});
+    if(++f<200) requestAnimationFrame(draw); else ctx.clearRect(0,0,canvas.width,canvas.height);
+  }
+  draw();
+}
+</script>
+</body>
+</html>
