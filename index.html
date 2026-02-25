@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Prof Kingkeys Academy: Master</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://js.puter.com/v2/"></script>
+<script src='https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js'></script>
+<style>
+:root{
+  --bg:#050507; --bg2:#0a0c12; --panel:#111420; --panel2:#1a1e2e;
+  --border:#252a3d; --gold:#f0b429; --gold2:#ffd166; 
+  --blue:#4d9eff; --green:#22d37a; --red:#ff4d4d; --purple:#c084fc;
+  --white:#e4e6eb; --text:#9aa5c4;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Sora',sans-serif; overflow-x:hidden;}
+
+/* ═══════ UPLOAD SCREEN ═══════ */
+#uploadScreen{
+  align-items:center;justify-content:center;padding:20px; min-height:100vh;
+  background: radial-gradient(circle at 50% 10%, rgba(77,158,255,0.08), transparent 70%);
+}
+.upload-box{width:100%;max-width:800px;animation:fadeUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+
+.brand-header{text-align:center;margin-bottom:24px;}
+.brand-crown{font-size:54px;display:inline-block;animation:float 4s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-10px);}}
+.brand-title{
+  font-size:clamp(24px, 5vw, 42px); font-weight:800; letter-spacing:-1px;
+  background:linear-gradient(135deg, var(--gold2), var(--gold));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+
+.input-area{
+  background:var(--panel);border:1px solid var(--border);border-radius:20px;
+  padding:8px; position:relative; box-shadow:0 20px 40px rgba(0,0,0,0.3);
+}
+textarea#userInput{
+  width:100%;min-height:350px;background:var(--bg2);border:1px solid var(--border);
+  border-radius:14px;padding:24px; padding-bottom:70px;
+  font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--white);
+  resize:vertical;outline:none;line-height:1.7; transition:border 0.3s;
+}
+textarea#userInput:focus{border-color:var(--blue);}
+
+/* TOOLS */
+.tools-row{
+  position:absolute; bottom:20px; right:20px; display:flex; gap:10px;
+}
+.tool-btn{
+  background:var(--panel2); border:1px solid var(--border); color:var(--text);
+  padding:12px 18px; border-radius:12px; font-size:13px; font-weight:700; cursor:pointer;
+  display:flex; align-items:center; gap:8px; transition:all 0.2s;
+}
+.tool-btn:active{transform:scale(0.95);}
+.tool-btn.camera{border-color:var(--gold); color:var(--gold);}
+
+.action-row{display:flex;gap:12px;margin-top:24px;}
+.btn-main{
+  flex:1;padding:20px;border-radius:16px;border:none;cursor:pointer;
+  font-family:'Sora',sans-serif;font-size:16px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;gap:10px; transition:all 0.2s;
+}
+.btn-gen{background:var(--gold);color:#000;box-shadow:0 8px 24px rgba(240,180,41,0.25);}
+.btn-gen:active{transform:scale(0.98);}
+.btn-read{background:var(--panel2);border:1px solid var(--border);color:var(--white);}
+
+/* ═══════ READER ═══════ */
+.screen{display:none;min-height:100vh;flex-direction:column;}
+.screen.active{display:flex;}
+
+#readerScreen{background:var(--bg);}
+.reader-top{
+  padding:16px 20px;display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--border);background:rgba(17,20,32,0.95);
+  backdrop-filter:blur(10px); position:sticky;top:0;z-index:50;
+}
+.back-btn{background:none; border:none; color:var(--text); font-weight:600; cursor:pointer; display:flex; align-items:center; gap:8px; font-size:14px;}
+
+.reader-content{
+  flex:1;padding:30px 20px 140px 20px;max-width:800px;margin:0 auto;line-height:2.2;
+  font-size:18px;color:var(--text);overflow-y:auto; scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+.reader-sentence{
+  padding:4px 4px; border-radius:6px; cursor: pointer; display:inline;
+  margin-right: 4px; border:1px solid transparent;
+}
+.reader-sentence.active{
+  background:rgba(240,180,41,0.15); color:var(--white);
+  border-color:rgba(240,180,41,0.3); box-shadow: 0 0 15px rgba(240,180,41,0.1);
+}
+
+.player-dock{
+  position:fixed;bottom:30px;left:50%;transform:translateX(-50%);
+  background:rgba(17,20,32,0.95);backdrop-filter:blur(12px);
+  border:1px solid var(--border);padding:10px 24px;border-radius:50px;
+  display:flex;align-items:center;gap:20px;
+  box-shadow:0 20px 50px rgba(0,0,0,0.6); z-index:100;
+}
+.p-btn-lg{
+  width:64px;height:64px;border-radius:50%;
+  font-size:24px;background:var(--gold);color:#050507;border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+}
+
+/* ═══════ QUIZ ═══════ */
+#quizScreen{background:var(--bg);}
+.quiz-dash{
+  padding:15px 20px;background:rgba(17,20,32,0.95);border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center;
+  position:sticky;top:0;z-index:40; backdrop-filter:blur(10px);
+}
+.stats-group{display:flex;gap:10px;}
+.stat-pill{
+  padding:8px 12px;border-radius:20px;font-size:12px;font-weight:700;
+  font-family:'JetBrains Mono',monospace;display:flex;align-items:center;gap:6px;
+}
+.stat-time{background:rgba(77,158,255,0.08);color:var(--blue);}
+.stat-score{background:rgba(34,211,122,0.08);color:var(--green);}
+
+.quiz-container{max-width:760px;margin:20px auto;padding:0 20px 100px 20px;}
+.q-card{
+  background:var(--panel);border:1px solid var(--border);border-radius:20px;
+  padding:24px;position:relative;margin-bottom:24px;
+  animation:popIn 0.4s ease;
+}
+@keyframes popIn{from{opacity:0;transform:scale(0.98);}to{opacity:1;transform:scale(1);}}
+
+.q-tag{position:absolute;top:20px;right:20px;font-size:10px;font-weight:800;padding:4px 10px;border-radius:20px;}
+.q-tag.obj{background:rgba(77,158,255,0.1);color:var(--blue);}
+.q-tag.sub{background:rgba(34,211,122,0.1);color:var(--green);}
+.q-tag.thy{background:rgba(192,132,252,0.1);color:var(--purple);}
+
+.q-header{display:flex; gap:12px; margin-bottom:16px; padding-right:50px;}
+.q-speak{
+  min-width:32px; height:32px; border-radius:10px; background:var(--bg2); border:1px solid var(--border);
+  color:var(--text); display:flex; align-items:center; justify-content:center; cursor:pointer;
+}
+.q-text{font-size:17px;font-weight:600;color:var(--white);line-height:1.5;}
+
+.opt-btn{
+  width:100%;text-align:left;padding:16px 18px;margin-bottom:10px;
+  background:var(--bg2);border:1px solid var(--border);border-radius:12px;
+  color:var(--text);cursor:pointer;font-family:inherit;font-size:15px; transition:all 0.2s;
+  display:flex; align-items:flex-start; line-height:1.4;
+}
+.opt-btn:active:not(:disabled){transform:scale(0.98);}
+
+/* Logic States */
+.opt-btn.correct {
+  border-color:var(--green) !important;
+  background:rgba(34,211,122,0.15) !important;
+  color:var(--green) !important;
+}
+.opt-btn.wrong {
+  border-color:var(--red) !important;
+  background:rgba(255,77,77,0.15) !important;
+  color:var(--red) !important;
+}
+
+.reveal-box{margin-top:16px;padding:16px;background:rgba(240,180,41,0.05);border-radius:12px;display:none;border-left:2px solid var(--gold);}
+.reveal-box.show{display:block; animation:fadeIn 0.3s;}
+
+.load-more-btn{
+  width:100%; padding:18px; background:var(--panel2); border:1px dashed var(--border);
+  color:var(--text); border-radius:16px; cursor:pointer; font-weight:600; font-family:'Sora', sans-serif;
+}
+.load-more-btn:disabled{opacity:0.5; cursor:wait;}
+
+/* OVERLAYS */
+.loader-overlay{
+  position:fixed; inset:0; background:rgba(5,5,7,0.95); z-index:200; 
+  display:none; flex-direction:column; align-items:center; justify-content:center;
+}
+.loader-overlay.active{display:flex;}
+.loader-spinner{width:50px;height:50px;border:4px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite;margin-bottom:20px;}
+.loader-text{font-size:18px;font-weight:700;color:var(--white);}
+.loader-sub{font-size:12px;color:var(--text);margin-top:5px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.extract-overlay{
+  position:fixed; inset:0; background:rgba(5,5,7,0.85); backdrop-filter:blur(8px);
+  z-index:250; display:none; align-items:center; justify-content:center; padding:20px;
+}
+.extract-overlay.active{display:flex;}
+.extract-card{
+  width:100%; max-width:500px; background:var(--panel); border:1px solid var(--border);
+  border-radius:24px; padding:24px; box-shadow:0 20px 60px rgba(0,0,0,0.6);
+  display:flex; flex-direction:column; max-height:80vh; animation:popIn 0.3s ease;
+}
+.extract-body{
+  flex:1; background:var(--bg2); border:1px solid var(--border); border-radius:12px;
+  padding:16px; overflow-y:auto; font-family:'JetBrains Mono',monospace; font-size:13px;
+  color:var(--white); margin-bottom:20px; white-space:pre-wrap;
+}
+.extract-actions{display:flex; gap:10px;}
+.btn-copy{flex:2; background:var(--gold); color:#000; font-weight:800; border:none; padding:16px; border-radius:12px;}
+.btn-close{flex:1; background:var(--panel2); color:var(--text); font-weight:600; border:1px solid var(--border); padding:16px; border-radius:12px;}
+
+.toast-box{
+  position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(100px);
+  background:var(--panel2); border:1px solid var(--gold); color:var(--white);
+  padding:12px 24px; border-radius:12px; font-weight:600; z-index:300;
+  transition:all 0.3s; opacity:0;
+}
+.toast-box.show{transform:translateX(-50%) translateY(0); opacity:1;}
+</style>
+</head>
+<body>
+
+<div class="loader-overlay" id="loaderOverlay">
+  <div class="loader-spinner"></div>
+  <div class="loader-text" id="loaderTitle">Processing...</div>
+  <div class="loader-sub" id="loaderSub"></div>
+</div>
+
+<div class="toast-box" id="toastBox">✅ Notification</div>
+
+<div class="extract-overlay" id="extractOverlay">
+  <div class="extract-card">
+    <div style="text-align:center;margin-bottom:16px;">
+      <div style="font-size:20px;font-weight:800;color:var(--gold);">Extracted Text</div>
+    </div>
+    <div class="extract-body" id="extractContent">...</div>
+    <div class="extract-actions">
+      <button class="btn-close" onclick="closeExtract()">Cancel</button>
+      <button class="btn-copy" onclick="copyAndClose()">COPY & CLOSE</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="photoInput" accept="image/*" multiple style="display:none" onchange="handlePhotos(this)">
+
+<div id="uploadScreen" class="screen active">
+  <div class="upload-box">
+    <div class="brand-header">
+      <div class="brand-crown">👑</div>
+      <h1 class="brand-title">Prof Kingkeys Academy</h1>
+      <div style="font-size:12px;color:var(--gold);margin-top:5px;">MASTER EDITION</div>
+    </div>
+
+    <div class="input-area">
+      <textarea id="userInput" placeholder="PASTE NOTES OR UPLOAD PHOTOS...
+
+📸 Click 'Add Photos' to scan text from books/notes.
+🎧 Click 'Read Mode' for the new glitch-free audio player.
+🚀 Click 'Start Quiz' for the infinite exam engine."></textarea>
+      
+      <div class="tools-row">
+        <button class="tool-btn camera" onclick="document.getElementById('photoInput').click()">
+          📸 Add Photos
+        </button>
+      </div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn-main btn-read" onclick="startReadMode()">🎧 Read Mode</button>
+      <button class="btn-main btn-gen" onclick="startGeneration()">🚀 Start Quiz</button>
+    </div>
+  </div>
+</div>
+
+<div id="readerScreen" class="screen">
+  <div class="reader-top">
+    <button class="back-btn" onclick="stopAudio(); showScreen('uploadScreen')">← Editor</button>
+    <button class="tool-btn" onclick="copyText()">📋 Copy All</button>
+  </div>
+  
+  <div class="reader-content" id="readerTextDisplay"></div>
+
+  <div class="player-dock">
+    <div class="p-speed" onclick="toggleSpeed()" id="speedLabel" style="color:#fff;font-family:monospace;">1.0x</div>
+    <button class="p-btn-lg" id="playPauseBtn" onclick="togglePlay()">⏸</button>
+  </div>
+</div>
+
+<div id="quizScreen" class="screen">
+  <div class="quiz-dash">
+    <button class="back-btn" onclick="stopQuiz()">← Exit</button>
+    <div class="stats-group">
+      <div class="stat-pill stat-time" id="timerDisplay">⏱ 00:00</div>
+      <div class="stat-pill stat-score" id="scoreDisplay">★ 0%</div>
+    </div>
+  </div>
+  <div class="quiz-container" id="quizContainer"></div>
+  <div style="padding:0 20px 60px 20px;">
+    <button class="load-more-btn" onclick="loadMoreQuestions()" id="loadMoreBtn">
+      ⚡ Generate +20 Questions
+    </button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//   UTILITIES (SHUFFLE & NORMALIZE)
+// ═══════════════════════════════════════════════
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+function normalize(str) {
+  // Remove punctuation, extra spaces, lowercase
+  return (str || '').toString().toLowerCase().replace(/[^\w\s]|_/g, "").replace(/\s+/g, " ").trim();
+}
+
+// ═══════════════════════════════════════════════
+//   STATE
+// ═══════════════════════════════════════════════
+let sentences = [];
+let currentSentenceIdx = 0;
+let synth = window.speechSynthesis;
+let isPlaying = false;
+let readSpeed = 1.0;
+let quizData = [];
+let quizStats = { total:0, correct:0, startTime:0, timerInterval:null, paused:false };
+let extractedTextBuffer = "";
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function getBritishVoice() {
+  const voices = synth.getVoices();
+  return voices.find(v => v.lang === 'en-GB' && (v.name.includes('Female') || v.name.includes('Google'))) 
+      || voices.find(v => v.lang === 'en-GB')
+      || voices.find(v => v.lang.startsWith('en'));
+}
+
+function toggleLoader(show, title, sub) {
+  const el = document.getElementById('loaderOverlay');
+  if(show) {
+    el.classList.add('active');
+    document.getElementById('loaderTitle').innerText = title;
+    document.getElementById('loaderSub').innerText = sub;
+  } else {
+    el.classList.remove('active');
+  }
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toastBox');
+  t.innerText = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ═══════════════════════════════════════════════
+//   OCR (PHOTO)
+// ═══════════════════════════════════════════════
+async function handlePhotos(input) {
+  if (input.files.length === 0) return;
+  toggleLoader(true, "Scanning...", "Loading OCR Engine...");
+  let combinedText = "";
+  try {
+    for (let i = 0; i < input.files.length; i++) {
+      toggleLoader(true, `Scanning Img ${i+1}...`, "Pattern Matching...");
+      const { data: { text } } = await Tesseract.recognize(
+        input.files[i], 'eng', { logger: m => {} } 
+      );
+      combinedText += `\n${text}\n`;
+    }
+    if (!combinedText.trim()) throw new Error("No text found.");
+    extractedTextBuffer = combinedText.trim();
+    toggleLoader(false);
+    document.getElementById('extractContent').innerText = extractedTextBuffer;
+    document.getElementById('extractOverlay').classList.add('active');
+  } catch (e) {
+    toggleLoader(false);
+    showToast("❌ OCR Failed: " + (e.message || "Try again"));
+  }
+}
+
+function copyAndClose() {
+  if(!extractedTextBuffer) return;
+  navigator.clipboard.writeText(extractedTextBuffer).then(() => {
+    showToast("✅ Copied!");
+    closeExtract();
+  });
+}
+
+function closeExtract() {
+  document.getElementById('extractOverlay').classList.remove('active');
+  extractedTextBuffer = "";
+  document.getElementById('photoInput').value = "";
+}
+
+// ═══════════════════════════════════════════════
+//   READER MODE
+// ═══════════════════════════════════════════════
+function startReadMode() {
+  const text = document.getElementById('userInput').value;
+  if (!text) return showToast("⚠️ Paste text first");
+  sentences = text.match(/[^.!?\n]+[.!?\n]+|[^.!?\n]+$/g) || [text];
+  sentences = sentences.map(s => s.trim()).filter(s => s.length > 0);
+  const display = document.getElementById('readerTextDisplay');
+  display.innerHTML = sentences.map((s, i) => 
+    `<span id="sent-${i}" class="reader-sentence" onclick="clickToRead(${i})">${s}</span>`
+  ).join(' ');
+  showScreen('readerScreen');
+  currentSentenceIdx = 0;
+  playSequence();
+}
+
+function clickToRead(idx) {
+  synth.cancel();
+  isPlaying = false;
+  currentSentenceIdx = idx;
+  highlightSentence(idx);
+  setTimeout(() => playSequence(), 50);
+}
+
+function highlightSentence(idx) {
+  document.querySelectorAll('.reader-sentence').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById(`sent-${idx}`);
+  if(el) {
+    el.classList.add('active');
+    el.scrollIntoView({behavior: "smooth", block: "center"});
+  }
+}
+
+function playSequence() {
+  if(currentSentenceIdx >= sentences.length) {
+    isPlaying = false;
+    document.getElementById('playPauseBtn').innerText = '▶';
+    return;
+  }
+  isPlaying = true;
+  document.getElementById('playPauseBtn').innerText = '⏸';
+  highlightSentence(currentSentenceIdx);
+  const text = sentences[currentSentenceIdx];
+  const utter = new SpeechSynthesisUtterance(text);
+  const voice = getBritishVoice();
+  if(voice) utter.voice = voice;
+  utter.rate = readSpeed;
+  utter.onend = () => {
+    if(isPlaying) { currentSentenceIdx++; playSequence(); }
+  };
+  synth.speak(utter);
+}
+
+function togglePlay() {
+  if(isPlaying) { synth.cancel(); isPlaying = false; document.getElementById('playPauseBtn').innerText = '▶'; }
+  else { playSequence(); }
+}
+
+function stopAudio() { synth.cancel(); isPlaying = false; }
+function toggleSpeed() {
+  readSpeed = readSpeed === 1.0 ? 1.5 : (readSpeed === 1.5 ? 2.0 : 1.0);
+  document.getElementById('speedLabel').innerText = readSpeed + 'x';
+}
+function copyText() {
+  navigator.clipboard.writeText(document.getElementById('userInput').value).then(() => showToast("✅ Copied!"));
+}
+
+// ═══════════════════════════════════════════════
+//   QUIZ ENGINE (MASTER)
+// ═══════════════════════════════════════════════
+function strictRepairJSON(text) {
+  try { return JSON.parse(text.replace(/```json/g,'').replace(/```/g,'').trim()); } catch(e){}
+  const objs = [];
+  const regex = /\{[\s\S]*?\}/g; 
+  let m;
+  while((m = regex.exec(text)) !== null) {
+    try { 
+      let clean = m[0].replace(/,\s*}/g, '}');
+      objs.push(JSON.parse(clean)); 
+    } catch(e){}
+  }
+  return objs;
+}
+
+async function startGeneration() {
+  const text = document.getElementById('userInput').value;
+  if(text.length < 50) return showToast("⚠️ Need more text");
+  quizData = [];
+  quizStats = { total: 0, correct: 0, startTime: Date.now(), timerInterval: null, paused: false };
+  document.getElementById('quizContainer').innerHTML = '';
+  startTimer();
+  updateScore();
+  showScreen('quizScreen');
+  await loadMoreQuestions();
+}
+
+async function loadMoreQuestions() {
+  const fullText = document.getElementById('userInput').value;
+  quizStats.paused = true;
+  toggleLoader(true, "AI Analyzing...", "Shuffling & Generating");
+
+  try {
+    let contextText = fullText;
+    if(fullText.length > 3000) {
+      const start = Math.floor(Math.random() * (fullText.length - 2500));
+      contextText = fullText.substring(start, start + 2500);
+    }
+
+    const prompt = `
+      Act as a Professor setting a University Final Exam.
+      Generate: 10 Objective (MCQ), 5 Subjective (Fill-in), 2 Theory.
+      
+      CRITICAL RULES:
+      1. DIFFICULTY: Questions must be TRICKY. Use plausible distractors. No obvious answers.
+      2. FORMAT: Objective questions MUST have 4 options.
+      3. ANSWER: For Objective, copy the EXACT text of the correct option into the 'answer' field.
+      4. EXPLANATION: Explain WHY the answer is correct.
+      
+      Schema: 
+      [
+        {"type":"objective", "question":"...", "options":["A","B","C","D"], "answer":"A", "explanation":"..."},
+        {"type":"subjective", "question":"...", "answer":"Word"},
+        {"type":"theory", "question":"...", "answer":"Detailed Answer"}
+      ]
+      
+      TEXT: ${contextText.replace(/[^\x20-\x7E\n]/g, '')}
+    `;
+
+    const res = await puter.ai.chat(prompt);
+    let newQs = strictRepairJSON(res?.message?.content || res);
+    
+    // Process & Shuffle
+    if (newQs && newQs.length) {
+      newQs.forEach(q => {
+        if(q.type === 'objective') {
+          if(!q.options || q.options.length < 4) {
+             q.type = 'subjective'; 
+          } else {
+             // SHUFFLE OPTIONS HERE
+             q.options = shuffleArray(q.options);
+          }
+        }
+      });
+      renderQuestions(newQs, quizData.length);
+      quizData = [...quizData, ...newQs];
+    } else { throw new Error("Invalid"); }
+
+  } catch(e) {
+    showToast("⚠️ AI Busy. Retrying...");
+  } finally {
+    toggleLoader(false);
+    quizStats.paused = false;
+  }
+}
+
+function renderQuestions(qs, startIndex) {
+  const container = document.getElementById('quizContainer');
+  qs.forEach((q, i) => {
+    const idx = startIndex + i;
+    const div = document.createElement('div');
+    div.className = 'q-card';
+    
+    let inner = `
+      <div class="q-tag ${q.type.substring(0,3)}">${q.type.toUpperCase()}</div>
+      <div class="q-header">
+        <div class="q-speak" onclick="speakText('${q.question.replace(/'/g,"")}')">🔊</div>
+        <div class="q-text">${idx+1}. ${q.question}</div>
+      </div>
+    `;
+
+    if(q.type === 'objective') {
+      q.options.forEach((opt, optIdx) => {
+        inner += `<button class="opt-btn" onclick="handleObjClick(${idx}, ${optIdx})">${opt}</button>`;
+      });
+      inner += `<div class="reveal-box" id="rev-${idx}"></div>`;
+    } 
+    else if (q.type === 'subjective') {
+      inner += `<input type="text" class="opt-btn" placeholder="Type Answer..." onchange="handleSubAnswer(this, ${idx})" />`;
+      inner += `<div class="reveal-box" id="rev-${idx}"></div>`;
+    }
+    else {
+      inner += `<button class="opt-btn" style="text-align:center;border-color:var(--purple);color:var(--purple)" onclick="handleThyReveal(${idx})">👁 Reveal Answer</button>`;
+      inner += `<div class="reveal-box" id="rev-${idx}">${q.answer}</div>`;
+    }
+    div.innerHTML = inner;
+    container.appendChild(div);
+  });
+}
+
+// ═══════════════════════════════════════════════
+//   LOGIC (NORMALIZED COMPARISON)
+// ═══════════════════════════════════════════════
+function handleObjClick(qIdx, optIdx) {
+  const q = quizData[qIdx];
+  const selectedText = q.options[optIdx];
+  const correctText = q.answer;
+  const container = document.getElementById(`rev-${qIdx}`).parentElement;
+  const buttons = container.querySelectorAll('button.opt-btn');
+  const reveal = document.getElementById(`rev-${qIdx}`);
+  
+  buttons.forEach(b => b.disabled = true);
+  
+  // STRICT NORMALIZED CHECK
+  const isCorrect = normalize(selectedText) === normalize(correctText);
+  
+  if(isCorrect) {
+    buttons[optIdx].classList.add('correct');
+    quizStats.correct++;
+    speakText(`Correct! ${q.explanation || ''}`);
+  } else {
+    buttons[optIdx].classList.add('wrong');
+    // Find correct button visually
+    buttons.forEach((b, i) => {
+      if(normalize(q.options[i]) === normalize(correctText)) b.classList.add('correct');
+    });
+    speakText(`Incorrect. The answer is ${correctText}. ${q.explanation || ''}`);
+  }
+  
+  reveal.innerHTML = `<b>${q.explanation || (isCorrect?'Correct':'')}</b>`;
+  reveal.classList.add('show');
+  quizStats.total++;
+  updateScore();
+}
+
+function handleSubAnswer(input, qIdx) {
+  const q = quizData[qIdx];
+  const userVal = normalize(input.value);
+  const correctVal = normalize(q.answer);
+  const reveal = document.getElementById(`rev-${qIdx}`);
+  
+  input.disabled = true;
+  if(userVal.includes(correctVal) || correctVal.includes(userVal)) {
+    input.style.borderColor = 'var(--green)';
+    quizStats.correct++;
+    speakText(`Correct! The answer is ${q.answer}`);
+  } else {
+    input.style.borderColor = 'var(--red)';
+    speakText(`Incorrect. The answer is ${q.answer}`);
+  }
+  reveal.innerHTML = `Answer: <b>${q.answer}</b>`;
+  reveal.classList.add('show');
+  quizStats.total++;
+  updateScore();
+}
+
+function handleThyReveal(idx) {
+  document.getElementById(`rev-${idx}`).classList.add('show');
+  speakText(quizData[idx].answer);
+}
+
+function speakText(t) {
+  synth.cancel();
+  const u = new SpeechSynthesisUtterance(t);
+  const v = getBritishVoice();
+  if(v) u.voice = v;
+  u.rate = readSpeed;
+  synth.speak(u);
+}
+
+function startTimer() {
+  if(quizStats.timerInterval) clearInterval(quizStats.timerInterval);
+  quizStats.startTime = Date.now();
+  quizStats.timerInterval = setInterval(() => {
+    if(!quizStats.paused) {
+      const d = Math.floor((Date.now() - quizStats.startTime)/1000);
+      const m = Math.floor(d/60).toString().padStart(2,'0');
+      const s = (d%60).toString().padStart(2,'0');
+      document.getElementById('timerDisplay').innerText = `⏱ ${m}:${s}`;
+    } else { quizStats.startTime += 1000; }
+  }, 1000);
+}
+
+function updateScore() {
+  const p = quizStats.total===0?0:Math.round((quizStats.correct/quizStats.total)*100);
+  document.getElementById('scoreDisplay').innerText = `★ ${p}%`;
+}
+
+function stopQuiz() {
+  clearInterval(quizStats.timerInterval);
+  stopAudio();
+  showScreen('uploadScreen');
+}
+
+window.speechSynthesis.onvoiceschanged = getBritishVoice;
+</script>
+</body>
+</html>
