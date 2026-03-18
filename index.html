@@ -293,6 +293,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://js.puter.com/v2/"></script>
 <script src='https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js'></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <style>
 :root{
   --bg:#050507; --bg2:#0a0c12; --panel:#111420; --panel2:#1a1e2e;
@@ -606,7 +608,29 @@ textarea#userInput:focus{border-color:var(--blue);}
 .btn-copy{flex:2; background:var(--gold); color:#000; font-weight:800; border:none; padding:16px; border-radius:12px;cursor:pointer;}
 .btn-close{flex:1; background:var(--panel2); color:var(--text); font-weight:600; border:1px solid var(--border); padding:16px; border-radius:12px;cursor:pointer;}
 
-.toast-box{
+.btn-doc{background:var(--panel2);border:1px solid var(--purple);color:var(--purple);}
+.btn-doc:active{transform:scale(0.98);}
+
+/* Doc progress overlay */
+.doc-progress-overlay{
+  position:fixed;inset:0;background:rgba(5,5,7,0.97);z-index:210;
+  display:none;flex-direction:column;align-items:center;justify-content:center;padding:30px;
+}
+.doc-progress-overlay.active{display:flex;}
+.doc-progress-title{font-size:20px;font-weight:800;color:var(--white);margin-bottom:8px;}
+.doc-progress-sub{font-size:13px;color:var(--text);margin-bottom:24px;text-align:center;}
+.doc-progress-bar-wrap{width:100%;max-width:400px;background:var(--panel);border-radius:20px;height:10px;overflow:hidden;}
+.doc-progress-bar{height:100%;background:linear-gradient(90deg,var(--purple),var(--blue));border-radius:20px;transition:width 0.3s;width:0%;}
+.doc-cancel-btn{margin-top:24px;background:none;border:1px solid var(--border);color:var(--text);padding:10px 24px;border-radius:10px;cursor:pointer;font-family:'Sora',sans-serif;font-weight:600;}
+.doc-stage-pill{
+  padding:6px 14px;border-radius:20px;font-size:11px;font-weight:700;
+  background:var(--panel);border:1px solid var(--border);color:var(--text);
+  transition:all 0.3s;letter-spacing:0.3px;
+}
+.doc-stage-pill.active{background:rgba(77,158,255,0.15);border-color:var(--blue);color:var(--blue);}
+.doc-stage-pill.done{background:rgba(34,211,122,0.12);border-color:var(--green);color:var(--green);}
+.doc-stage-pill.error{background:rgba(255,77,77,0.12);border-color:var(--red);color:var(--red);}
+
   position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(100px);
   background:var(--panel2); border:1px solid var(--gold); color:var(--white);
   padding:12px 24px; border-radius:12px; font-weight:600; z-index:300;
@@ -623,8 +647,6 @@ textarea#userInput:focus{border-color:var(--blue);}
   <div class="loader-sub" id="loaderSub"></div>
 </div>
 
-<div class="toast-box" id="toastBox">✅ Notification</div>
-
 <div class="extract-overlay" id="extractOverlay">
   <div class="extract-card">
     <div style="text-align:center;margin-bottom:16px;">
@@ -639,6 +661,22 @@ textarea#userInput:focus{border-color:var(--blue);}
 </div>
 
 <input type="file" id="photoInput" accept="image/*" multiple style="display:none" onchange="handlePhotos(this)">
+<input type="file" id="docInput" accept=".pdf,.docx,.doc,.txt,.md" style="display:none" onchange="handleDocUpload(this)">
+
+<!-- Doc Progress Overlay -->
+<div class="doc-progress-overlay" id="docProgressOverlay">
+  <div style="font-size:40px;margin-bottom:16px;" id="docProgressIcon">📄</div>
+  <div class="doc-progress-title" id="docProgressTitle">Reading Document...</div>
+  <div class="doc-progress-sub" id="docProgressSub">Extracting text, please wait</div>
+  <div class="doc-progress-bar-wrap"><div class="doc-progress-bar" id="docProgressBar"></div></div>
+  <!-- Stage pills -->
+  <div style="display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;justify-content:center;" id="docStageRow">
+    <div class="doc-stage-pill" id="stage-extract" style="display:none"></div>
+    <div class="doc-stage-pill" id="stage-ocr">🔍 OCR Scan</div>
+    <div class="doc-stage-pill" id="stage-ai">🧠 AI Vision</div>
+  </div>
+  <button class="doc-cancel-btn" onclick="cancelDocRead()">Cancel</button>
+</div>
 
 <!-- ══════════════════════════════════════ UPLOAD SCREEN -->
 <div id="uploadScreen" class="screen active">
@@ -665,6 +703,7 @@ textarea#userInput:focus{border-color:var(--blue);}
 
     <div class="action-row">
       <button class="btn-main btn-read" onclick="startReadMode()">🎧 Read Mode</button>
+      <button class="btn-main btn-doc" onclick="document.getElementById('docInput').click()">📄 Read Doc</button>
       <button class="btn-main btn-gen" onclick="startGeneration()">🚀 Start Quiz</button>
     </div>
   </div>
@@ -752,32 +791,157 @@ const FAVE_LANGS = [
 ];
 
 // ═══════════════════════════════════════════════
+//   UNICODE NORMALIZER — runs BEFORE any rendering
+//   Converts Math Italic/Bold Unicode letters → ASCII
+//   Converts Unicode sub/superscript digits → HTML
+// ═══════════════════════════════════════════════
+function normalizeMathUnicode(text) {
+  if (!text) return text;
+  // Map a single Unicode math code point to ASCII
+  function mathCharToASCII(cp) {
+    // Mathematical Bold A-Z, a-z  (U+1D400–U+1D433)
+    if (cp >= 0x1D400 && cp <= 0x1D419) return String.fromCharCode(cp - 0x1D400 + 65);
+    if (cp >= 0x1D41A && cp <= 0x1D433) return String.fromCharCode(cp - 0x1D41A + 97);
+    // Mathematical Italic A-Z, a-z  (U+1D434–U+1D467)
+    if (cp >= 0x1D434 && cp <= 0x1D44D) return String.fromCharCode(cp - 0x1D434 + 65);
+    if (cp >= 0x1D44E && cp <= 0x1D467) return String.fromCharCode(cp - 0x1D44E + 97);
+    // Mathematical Bold Italic A-Z, a-z  (U+1D468–U+1D49B)
+    if (cp >= 0x1D468 && cp <= 0x1D481) return String.fromCharCode(cp - 0x1D468 + 65);
+    if (cp >= 0x1D482 && cp <= 0x1D49B) return String.fromCharCode(cp - 0x1D482 + 97);
+    // Mathematical Sans Bold A-Z, a-z  (U+1D5D4–U+1D607)
+    if (cp >= 0x1D5D4 && cp <= 0x1D5ED) return String.fromCharCode(cp - 0x1D5D4 + 65);
+    if (cp >= 0x1D5EE && cp <= 0x1D607) return String.fromCharCode(cp - 0x1D5EE + 97);
+    // Mathematical Monospace A-Z, a-z  (U+1D670–U+1D6A3)
+    if (cp >= 0x1D670 && cp <= 0x1D689) return String.fromCharCode(cp - 0x1D670 + 65);
+    if (cp >= 0x1D68A && cp <= 0x1D6A3) return String.fromCharCode(cp - 0x1D68A + 97);
+    // Script / Fraktur ranges
+    if (cp >= 0x1D49C && cp <= 0x1D4CF) {
+      const base = cp - 0x1D49C;
+      if (base < 26) return String.fromCharCode(base + 65);
+      if (base < 52) return String.fromCharCode(base - 26 + 97);
+    }
+    // Double-struck A-Z (U+1D538–U+1D56B)
+    if (cp >= 0x1D538 && cp <= 0x1D551) return String.fromCharCode(cp - 0x1D538 + 65);
+    if (cp >= 0x1D552 && cp <= 0x1D56B) return String.fromCharCode(cp - 0x1D552 + 97);
+    // Fullwidth latin A-Z (U+FF21–FF3A), a-z (U+FF41–FF5A)
+    if (cp >= 0xFF21 && cp <= 0xFF3A) return String.fromCharCode(cp - 0xFF21 + 65);
+    if (cp >= 0xFF41 && cp <= 0xFF5A) return String.fromCharCode(cp - 0xFF41 + 97);
+    return null; // not a math letter
+  }
+
+  // Pass 1: replace math Unicode letters with ASCII
+  let result = '';
+  for (let i = 0; i < text.length; ) {
+    const cp = text.codePointAt(i);
+    const ascii = mathCharToASCII(cp);
+    if (ascii !== null) {
+      result += ascii;
+    } else {
+      result += text[i];
+      if (cp > 0xFFFF) result += text[i + 1]; // surrogate pair second half
+    }
+    i += (cp > 0xFFFF ? 2 : 1);
+  }
+
+  // Pass 2: Unicode subscript/superscript digits + signs → HTML tags
+  const subMap = {'₀':'0','₁':'1','₂':'2','₃':'3','₄':'4','₅':'5','₆':'6','₇':'7','₈':'8','₉':'9','₊':'+','₋':'-','₌':'=','₍':'(','₎':')'};
+  const supMap = {'⁰':'0','¹':'1','²':'2','³':'3','⁴':'4','⁵':'5','⁶':'6','⁷':'7','⁸':'8','⁹':'9','⁺':'+','⁻':'-','⁼':'=','⁽':'(','⁾':')'};
+  // Replace runs of subscript chars
+  result = result.replace(/[₀₁₂₃₄₅₆₇₈₉₊₋₌₍₎]+/g, m => '<sub>' + m.split('').map(c => subMap[c] || c).join('') + '</sub>');
+  // Replace runs of superscript chars
+  result = result.replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁼⁽⁾]+/g, m => '<sup>' + m.split('').map(c => supMap[c] || c).join('') + '</sup>');
+
+  // Pass 3: normalize dash types used in chemical bonds
+  // En dash (–) and em dash (—) used as bond dashes → regular hyphen-minus
+  // BUT only when surrounded by chem-like chars, not in general text
+  result = result.replace(/([A-Za-z0-9\]\)])\u2013([A-Za-z0-9\[\(])/g, '$1-$2'); // en dash
+  result = result.replace(/([A-Za-z0-9\]\)])\u2014([A-Za-z0-9\[\(])/g, '$1-$2'); // em dash
+
+  // Pass 4: curly/smart apostrophes & quotes → straight (for prime marks in chem)
+  result = result.replace(/[\u2018\u2019\u02BC]/g, "'"); // curly single quotes → '
+  result = result.replace(/[\u201C\u201D]/g, '"');       // curly double quotes → "
+
+  return result;
+}
+
+// ═══════════════════════════════════════════════
 //   MATH RENDERER (converts LaTeX-style to HTML)
 // ═══════════════════════════════════════════════
 function renderMath(text) {
   if (!text) return text;
-  let t = text;
-  // 1. Strip \text{}, \mathrm{} etc — reveal plain text inside
+  let t = normalizeMathUnicode(text); // ← normalize Unicode math chars FIRST
+  // 1. Strip formatting wrappers — reveal plain content
   t = t.replace(/\\text\{([^}]+)\}/g, '$1');
   t = t.replace(/\\mathrm\{([^}]+)\}/g, '$1');
-  t = t.replace(/\\mathbf\{([^}]+)\}/g, '$1');
-  t = t.replace(/\\textbf\{([^}]+)\}/g, '$1');
-  // 2. Symbols
-  t = t.replace(/\\times/g, '\u00D7').replace(/\\cdot/g, '\u00B7').replace(/\\div/g, '\u00F7')
-       .replace(/\\pm/g, '\u00B1').replace(/\\approx/g, '\u2248').replace(/\\neq/g, '\u2260')
-       .replace(/\\leq/g, '\u2264').replace(/\\geq/g, '\u2265')
-       .replace(/\\alpha/g, '\u03B1').replace(/\\beta/g, '\u03B2').replace(/\\gamma/g, '\u03B3')
-       .replace(/\\delta/g, '\u03B4').replace(/\\mu/g, '\u03BC').replace(/\\sigma/g, '\u03C3')
-       .replace(/\\infty/g, '\u221E').replace(/\\pi/g, '\u03C0');
-  // 3. Subscripts & superscripts FIRST — must happen before \\frac so nested {} are removed
+  t = t.replace(/\\mathbf\{([^}]+)\}/g, '<strong>$1</strong>');
+  t = t.replace(/\\textbf\{([^}]+)\}/g, '<strong>$1</strong>');
+  // 2. Labeled arrows — render as stacked label-over-arrow (proper chemistry notation)
+  t = t.replace(/\\xrightarrow\{([^}]*)\}/g, function(_, label) {
+    if (!label.trim()) return '<span style="color:var(--blue);margin:0 4px;">→</span>';
+    // process subscripts in the label itself
+    let lbl = label
+      .replace(/\_\{([^}]+)\}/g, '<sub>$1</sub>').replace(/_([A-Za-z0-9])/g, '<sub>$1</sub>')
+      .replace(/\^\{([^}]+)\}/g, '<sup>$1</sup>').replace(/\^([A-Za-z0-9])/g, '<sup>$1</sup>');
+    return `<span style="display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 6px;line-height:1.1;"><span style="font-size:0.7em;color:var(--gold);white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis;" title="${label}">${lbl}</span><span style="color:var(--blue);font-size:1.05em;letter-spacing:-1px;">─────→</span></span>`;
+  });
+  t = t.replace(/\\xleftarrow\{([^}]*)\}/g, function(_, label) {
+    if (!label.trim()) return '<span style="color:var(--blue);margin:0 4px;">←</span>';
+    let lbl = label
+      .replace(/\_\{([^}]+)\}/g, '<sub>$1</sub>').replace(/_([A-Za-z0-9])/g, '<sub>$1</sub>');
+    return `<span style="display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 6px;line-height:1.1;"><span style="font-size:0.7em;color:var(--gold);white-space:nowrap;">${lbl}</span><span style="color:var(--blue);font-size:1.05em;letter-spacing:-1px;">←─────</span></span>`;
+  });
+  // 3. Arrows & relation symbols
+  t = t.replace(/\\rightleftharpoons/g, ' ⇌ ');
+  t = t.replace(/\\leftrightarrow/g, ' ↔ ');
+  t = t.replace(/\\Leftrightarrow/g, ' ⟺ ');
+  t = t.replace(/\\Rightarrow/g, ' ⇒ ');
+  t = t.replace(/\\Leftarrow/g, ' ⇐ ');
+  t = t.replace(/\\rightarrow/g, ' → ');
+  t = t.replace(/\\leftarrow/g, ' ← ');
+  t = t.replace(/\\to\b/g, ' → ');
+  t = t.replace(/\\gets\b/g, ' ← ');
+  // 4. Prime notation (before subscript/superscript processing)
+  t = t.replace(/\\prime\\prime\\prime/g, '‴');
+  t = t.replace(/\\prime\\prime/g, '″');
+  t = t.replace(/\\prime/g, '′');
+  // 5. Common math symbols
+  t = t.replace(/\\times/g, '×').replace(/\\cdot/g, '·').replace(/\\div/g, '÷')
+       .replace(/\\pm/g, '±').replace(/\\mp/g, '∓')
+       .replace(/\\approx/g, '≈').replace(/\\neq/g, '≠').replace(/\\equiv/g, '≡')
+       .replace(/\\leq/g, '≤').replace(/\\geq/g, '≥')
+       .replace(/\\ll/g, '≪').replace(/\\gg/g, '≫')
+       .replace(/\\infty/g, '∞').replace(/\\partial/g, '∂')
+       .replace(/\\nabla/g, '∇').replace(/\\forall/g, '∀').replace(/\\exists/g, '∃')
+       .replace(/\\in\b/g, '∈').replace(/\\notin\b/g, '∉')
+       .replace(/\\subset/g, '⊂').replace(/\\supset/g, '⊃')
+       .replace(/\\cup/g, '∪').replace(/\\cap/g, '∩')
+       .replace(/\\sum/g, '∑').replace(/\\prod/g, '∏').replace(/\\int/g, '∫');
+  // 6. Greek letters
+  t = t.replace(/\\Alpha/g,'Α').replace(/\\Beta/g,'Β').replace(/\\Gamma/g,'Γ')
+       .replace(/\\Delta/g,'Δ').replace(/\\Epsilon/g,'Ε').replace(/\\Zeta/g,'Ζ')
+       .replace(/\\Eta/g,'Η').replace(/\\Theta/g,'Θ').replace(/\\Lambda/g,'Λ')
+       .replace(/\\Mu/g,'Μ').replace(/\\Pi/g,'Π').replace(/\\Sigma/g,'Σ')
+       .replace(/\\Omega/g,'Ω').replace(/\\Phi/g,'Φ').replace(/\\Psi/g,'Ψ');
+  t = t.replace(/\\alpha/g,'α').replace(/\\beta/g,'β').replace(/\\gamma/g,'γ')
+       .replace(/\\delta/g,'δ').replace(/\\epsilon/g,'ε').replace(/\\zeta/g,'ζ')
+       .replace(/\\eta/g,'η').replace(/\\theta/g,'θ').replace(/\\iota/g,'ι')
+       .replace(/\\kappa/g,'κ').replace(/\\lambda/g,'λ').replace(/\\mu/g,'μ')
+       .replace(/\\nu/g,'ν').replace(/\\xi/g,'ξ').replace(/\\pi/g,'π')
+       .replace(/\\rho/g,'ρ').replace(/\\sigma/g,'σ').replace(/\\tau/g,'τ')
+       .replace(/\\upsilon/g,'υ').replace(/\\phi/g,'φ').replace(/\\chi/g,'χ')
+       .replace(/\\psi/g,'ψ').replace(/\\omega/g,'ω');
+  // 7. Subscripts & superscripts (AFTER arrows/prime so nested {} already handled)
   t = t.replace(/\_\{([^}]+)\}/g, '<sub>$1</sub>');
   t = t.replace(/_([A-Za-z0-9])/g, '<sub>$1</sub>');
   t = t.replace(/\^\{([^}]+)\}/g, '<sup>$1</sup>');
   t = t.replace(/\^([A-Za-z0-9])/g, '<sup>$1</sup>');
-  // 4. Square root
-  t = t.replace(/\\sqrt\{([^}]+)\}/g, function(_, v){ return '<span class="math-expr">\u221A(' + v + ')</span>'; });
-  // 5. Fractions — safe now: sub/sup already resolved so no nested {} remain in args
+  // 8. Square root
+  t = t.replace(/\\sqrt\{([^}]+)\}/g, function(_, v){ return '<span class="math-expr">√(' + v + ')</span>'; });
+  t = t.replace(/\\sqrt\s+([A-Za-z0-9])/g, function(_, v){ return '<span class="math-expr">√' + v + '</span>'; });
+  // 9. Fractions
   t = t.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, function(_, n, d){ return '<span class="math-expr">(' + n + ')/(' + d + ')</span>'; });
+  // 10. Remaining stray backslash commands — strip the backslash
+  t = t.replace(/\\([a-zA-Z]+)/g, '$1');
   return t;
 }
 
@@ -802,29 +966,37 @@ function normalize(str) {
     .replace(/[^\w\s]|_/g, "").replace(/\s+/g, " ").trim();
 }
 
+// Returns 0–1 word-overlap ratio (ignoring stop words)
+function wordMatchScore(raw_user, raw_correct) {
+  const STOP = new Set(['the','a','an','of','in','is','are','and','or','to','for','with','by','on','at','as','its','it','this','that','these','those','have','has','had','be','been','can','will','would','could','should','may','might']);
+  const u = normalize(raw_user).split(' ').filter(w => w.length > 2 && !STOP.has(w));
+  const c = normalize(raw_correct).split(' ').filter(w => w.length > 2 && !STOP.has(w));
+  if (!u.length || !c.length) return 0;
+  const matched = u.filter(uw => c.some(cw => cw === uw || (cw.length > 4 && uw.length > 4 && (cw.startsWith(uw.slice(0,5)) || uw.startsWith(cw.slice(0,5))))));
+  return matched.length / Math.max(u.length, c.length);
+}
+
 function smartMatch(raw_user, raw_correct) {
   const u = normalize(raw_user);
   const c = normalize(raw_correct);
   if (!u || !c) return false;
   if (u === c) return true;
-  if (u.includes(c) || c.includes(u)) return true;
+  // Substring containment — only if the shorter string is substantial
   const minLen = Math.min(u.length, c.length);
-  if (minLen >= 5) {
+  if (minLen >= 8 && (u.includes(c) || c.includes(u))) return true;
+  // Stem match — first 78% characters, only for short answers
+  if (minLen >= 5 && minLen <= 30) {
     const stemLen = Math.max(4, Math.floor(minLen * 0.78));
     if (u.substring(0, stemLen) === c.substring(0, stemLen)) return true;
   }
-  const STOP = new Set(['the','a','an','of','in','is','are','and','or','to','for','with','by','on','at','as']);
-  const uWords = u.split(' ').filter(w => w.length > 2 && !STOP.has(w));
-  const cWords = c.split(' ').filter(w => w.length > 2 && !STOP.has(w));
-  if (uWords.length > 0 && cWords.length > 0) {
-    const matched = uWords.filter(uw => cWords.some(cw => cw.includes(uw) || uw.includes(cw)));
-    const ratio = matched.length / Math.max(uWords.length, cWords.length);
-    if (ratio >= 0.55) return true;
-  }
+  // Acronym match (e.g. user types CMC, correct is Critical Micelle Concentration)
   function makeAcronym(words) { return words.filter(w => w.length > 0).map(w => w[0]).join(''); }
   const uAcro = makeAcronym(u.replace(/[^\w\s]/g,'').split(' ').filter(Boolean));
   const cAcro = makeAcronym(c.replace(/[^\w\s]/g,'').split(' ').filter(Boolean));
-  if (u === cAcro || c === uAcro) return true;
+  if ((u.length <= 8 && u === cAcro) || (c.length <= 8 && c === uAcro)) return true;
+  // Word overlap — raised threshold to 0.72 to prevent false positives on similar MCQ options
+  const score = wordMatchScore(raw_user, raw_correct);
+  if (score >= 0.72) return true;
   return false;
 }
 
@@ -1088,9 +1260,9 @@ function closeExtract() {
 // ═══════════════════════════════════════════════
 function cleanDisplay(text) {
   if (!text) return '';
-  // 1. Apply math rendering first
-  let t = renderMath(String(text));
-  // 2. Markdown → HTML
+  // 1. Normalize Unicode math characters first (before renderMath)
+  let t = renderMath(normalizeMathUnicode(String(text)));
+  // 2. Markdown → HTML (after math rendering)
   t = t.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
   t = t.replace(/\*(.*?)\*/g, '<em>$1</em>');
   t = t.replace(/\*/g, '');
@@ -1101,6 +1273,14 @@ function cleanDisplay(text) {
 function cleanSpeech(text) {
   return (text || '').toString()
     .replace(/\\text\{([^}]+)\}/g, '$1').replace(/\\mathrm\{([^}]+)\}/g, '$1')
+    .replace(/\\xrightarrow\{([^}]+)\}/g, 'with $1 gives')
+    .replace(/\\xrightarrow/g, 'gives')
+    .replace(/\\rightleftharpoons/g, 'in equilibrium with')
+    .replace(/\\rightarrow/g, 'gives').replace(/\\leftarrow/g, 'from')
+    .replace(/\\Rightarrow/g, 'implies').replace(/\\to\b/g, 'gives')
+    .replace(/→/g, 'gives').replace(/←/g, 'from').replace(/⇌/g, 'in equilibrium with')
+    .replace(/\\prime\\prime/g, 'double prime').replace(/\\prime/g, 'prime')
+    .replace(/′′/g, 'double prime').replace(/′/g, 'prime')
     .replace(/\\times/g, 'times').replace(/\\div/g, 'divided by').replace(/\\pm/g, 'plus or minus')
     .replace(/\\approx/g, 'approximately').replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '$1 over $2')
     .replace(/\\sqrt\{([^}]+)\}/g, 'square root of $1')
@@ -1483,11 +1663,27 @@ function renderSingleQuestion(idx) {
   `;
 
   if (q.type === 'objective' || q.type === 'mindgame') {
+    // Pre-compute the single correct option index (exact match only for display)
+    let correctOptIdx = q.options.findIndex(opt => normalize(opt) === normalize(q.answer));
+    if (correctOptIdx === -1) {
+      // fallback: best word score, single winner only
+      let bestScore = 0, bestIdx = -1;
+      q.options.forEach((opt, i) => {
+        const s = wordMatchScore(opt, q.answer);
+        if (s > bestScore) { bestScore = s; bestIdx = i; }
+      });
+      if (bestScore >= 0.60) correctOptIdx = bestIdx;
+    }
+
     q.options.forEach((opt, optIdx) => {
-      const savedClass = answered ? 
-        (optIdx === answered.selectedOptIdx ? (answered.isCorrect ? ' correct' : ' wrong') : 
-         (normalize(q.options[optIdx]) === normalize(q.answer) || smartMatch(q.options[optIdx], q.answer)) && !answered.isCorrect ? ' correct' : '') 
-        : '';
+      let savedClass = '';
+      if (answered) {
+        if (optIdx === answered.selectedOptIdx) {
+          savedClass = answered.isCorrect ? ' correct' : ' wrong';
+        } else if (!answered.isCorrect && optIdx === correctOptIdx) {
+          savedClass = ' correct'; // highlight the ONE correct option
+        }
+      }
       inner += `<button class="opt-btn${savedClass}" ${answered?'disabled':''} onclick="handleObjClick(${idx}, ${optIdx})">${cleanDisplay(opt)}</button>`;
     });
     inner += `<div class="reveal-box ${answered?'show':''}" id="rev-${idx}">`;
@@ -1568,25 +1764,40 @@ function handleObjClick(qIdx, optIdx) {
   const selectedText = q.options[optIdx];
   const correctText  = q.answer;
 
-  const isCorrect = normalize(selectedText) === normalize(correctText)
-                 || smartMatch(selectedText, correctText);
+  // Step 1: Find the correct option index using STRICT exact match first
+  // This prevents smartMatch from wrongly identifying similar-sounding options as correct
+  let correctOptIdx = q.options.findIndex(opt => normalize(opt) === normalize(correctText));
+
+  // Step 2: If no exact match, use smartMatch ONCE to find the single BEST matching option
+  if (correctOptIdx === -1) {
+    let bestScore = 0, bestIdx = -1;
+    q.options.forEach((opt, i) => {
+      const score = wordMatchScore(opt, correctText);
+      if (score > bestScore) { bestScore = score; bestIdx = i; }
+    });
+    // Only accept if clearly dominant (threshold 0.60)
+    if (bestScore >= 0.60) correctOptIdx = bestIdx;
+  }
+
+  // Step 3: Determine if the selected option is correct
+  const isCorrect = correctOptIdx !== -1
+    ? optIdx === correctOptIdx
+    : smartMatch(selectedText, correctText); // fallback only if answer not among options
 
   quizAnswered[qIdx] = { isCorrect, selectedOptIdx: optIdx };
   quizStats.total++;
   if (isCorrect) quizStats.correct++;
   updateScore();
 
-  // Update button visuals live
+  // Step 4: Visuals — disable ALL buttons, colour ONLY the selected and the ONE correct
   const container = document.getElementById('quizContainer');
   const buttons = container.querySelectorAll('button.opt-btn');
   buttons.forEach(b => b.disabled = true);
   buttons[optIdx].classList.add(isCorrect ? 'correct' : 'wrong');
-  if (!isCorrect) {
-    buttons.forEach((b, i) => {
-      if (normalize(q.options[i]) === normalize(correctText) || smartMatch(q.options[i], correctText)) {
-        b.classList.add('correct');
-      }
-    });
+
+  // Show correct answer in green — strictly ONE button
+  if (!isCorrect && correctOptIdx !== -1 && correctOptIdx !== optIdx) {
+    buttons[correctOptIdx].classList.add('correct');
   }
 
   const explain = q.explanation || (isCorrect ? 'Well done!' : `Correct answer: ${correctText}`);
@@ -1599,7 +1810,6 @@ function handleObjClick(qIdx, optIdx) {
     : `Incorrect. The answer is ${cleanSpeech(correctText)}. ${cleanSpeech(q.explanation || '')}`
   );
 
-  // Auto-advance after 1.8s if playing and correct
   updateQuizNav();
 }
 
@@ -1696,9 +1906,266 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 3000);
 }
 
+
 // ═══════════════════════════════════════════════
-//   INIT — voices
+//   READ DOC — 3-TIER PIPELINE
+//   Tier 1: PDF.js text-layer extraction
+//   Tier 2: Tesseract OCR (canvas render per page)
+//   Tier 3: Claude Vision API (handwriting fallback)
 // ═══════════════════════════════════════════════
+let _docReadCancelled = false;
+
+function cancelDocRead() {
+  _docReadCancelled = true;
+  document.getElementById('docProgressOverlay').classList.remove('active');
+  document.getElementById('docInput').value = '';
+}
+
+function setDocProgress(pct, title, sub, icon) {
+  document.getElementById('docProgressBar').style.width = Math.min(100, pct) + '%';
+  if (title) document.getElementById('docProgressTitle').textContent = title;
+  if (sub)   document.getElementById('docProgressSub').textContent = sub;
+  if (icon)  document.getElementById('docProgressIcon').textContent = icon;
+}
+
+function setStage(stageId, state) { // state: 'active' | 'done' | 'error' | ''
+  const el = document.getElementById('stage-' + stageId);
+  if (!el) return;
+  el.className = 'doc-stage-pill' + (state ? ' ' + state : '');
+}
+
+// ── Render a PDF page to a canvas and return base64 image ──
+async function renderPageToBase64(pdf, pageNum, scale) {
+  const page = await pdf.getPage(pageNum);
+  const viewport = page.getViewport({ scale: scale || 2.5 }); // 2.5× for crisp OCR
+  const canvas = document.createElement('canvas');
+  canvas.width  = viewport.width;
+  canvas.height = viewport.height;
+  const ctx = canvas.getContext('2d');
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  return canvas.toDataURL('image/png').split(',')[1]; // base64 only
+}
+
+// ── TIER 2: Tesseract OCR ──────────────────────
+async function tier2_tesseractOCR(pdf, totalPages) {
+  if (typeof Tesseract === 'undefined') throw new Error('Tesseract not loaded');
+  let fullText = '';
+  let totalConf = 0, confCount = 0;
+  for (let p = 1; p <= totalPages; p++) {
+    if (_docReadCancelled) return { text: null, avgConf: 0 };
+    setDocProgress(
+      Math.round(40 + (p / totalPages) * 35),
+      'OCR Scanning...',
+      `Scanning page ${p} of ${totalPages}...`, '🔍'
+    );
+    const page = await pdf.getPage(p);
+    const viewport = page.getViewport({ scale: 2.5 });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width; canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+
+    const { data } = await Tesseract.recognize(canvas, 'eng', {
+      logger: () => {},
+      tessedit_pageseg_mode: '1',       // Auto page seg with OSD
+      preserve_interword_spaces: '1',
+    });
+    totalConf += (data.confidence || 0);
+    confCount++;
+    fullText += (data.text || '').trim() + '\n\n';
+  }
+  const avgConf = confCount > 0 ? totalConf / confCount : 0;
+  return { text: fullText, avgConf };
+}
+
+// ── TIER 3: Claude Vision API ──────────────────
+async function tier3_claudeVision(pdf, totalPages) {
+  let fullText = '';
+  const BATCH = 2; // process 2 pages per API call to stay within limits
+  for (let p = 1; p <= totalPages; p += BATCH) {
+    if (_docReadCancelled) return null;
+    const end = Math.min(p + BATCH - 1, totalPages);
+    setDocProgress(
+      Math.round(78 + ((p - 1) / totalPages) * 18),
+      'AI Reading Handwriting...',
+      `Pages ${p}–${end} of ${totalPages}`, '🧠'
+    );
+
+    // Build content blocks — one image per page in the batch
+    const contentBlocks = [];
+    for (let pp = p; pp <= end; pp++) {
+      const b64 = await renderPageToBase64(pdf, pp, 2.5);
+      contentBlocks.push({
+        type: 'image',
+        source: { type: 'base64', media_type: 'image/png', data: b64 }
+      });
+      contentBlocks.push({
+        type: 'text',
+        text: pp === p ? `Please transcribe ALL text from these ${end - p + 1} page(s) of a handwritten/scanned document exactly as written. Preserve structure — headings, bullet points, numbered lists, equations, chemical formulas. Output only the transcribed text, no commentary.` : ''
+      });
+    }
+    // Remove empty text blocks
+    const blocks = contentBlocks.filter(b => !(b.type === 'text' && !b.text));
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 2000,
+          messages: [{ role: 'user', content: blocks }]
+        })
+      });
+      const data = await response.json();
+      const pageText = (data.content || [])
+        .filter(c => c.type === 'text').map(c => c.text).join('\n');
+      fullText += pageText.trim() + '\n\n';
+    } catch (e) {
+      console.warn('[Tier3] API call failed for page batch', p, e);
+      // Continue — partial text is better than nothing
+    }
+    // Small breathing room between API calls
+    await new Promise(r => setTimeout(r, 300));
+  }
+  return fullText;
+}
+
+// ── MAIN PDF extraction orchestrator ──────────
+async function extractPDFText(file) {
+  if (typeof pdfjsLib === 'undefined') throw new Error('PDF.js not loaded');
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const totalPages = pdf.numPages;
+
+  // ── TIER 2 — Tesseract OCR (start here always) ──
+  setStage('extract', 'done'); // skip tier 1
+  setStage('ocr', 'active'); setStage('ai', '');
+  setDocProgress(5, 'OCR Scanning...', 'Preparing scanner...', '🔍');
+
+  let t2Text = '', t2Conf = 0;
+  try {
+    const t2Result = await tier2_tesseractOCR(pdf, totalPages);
+    if (_docReadCancelled) return '';
+    t2Text = t2Result.text || '';
+    t2Conf = t2Result.avgConf;
+  } catch(e) {
+    console.warn('[Tier2] Tesseract failed:', e);
+    setStage('ocr', 'error');
+  }
+
+  const avgT2CharsPerPage = t2Text.trim().length / totalPages;
+  const t2Good = t2Conf >= 55 && avgT2CharsPerPage >= 60;
+
+  if (t2Good) {
+    setStage('ocr', 'done');
+    setDocProgress(100, 'Done!', `OCR complete (confidence: ${Math.round(t2Conf)}%)`, '✅');
+    return t2Text;
+  }
+
+  // ── TIER 3 — Claude Vision ──
+  setStage('ocr', 'error');
+  setStage('ai', 'active');
+  setDocProgress(76, 'OCR confidence low, using AI Vision...', 'Sending to Claude AI...', '🧠');
+
+  const t3Text = await tier3_claudeVision(pdf, totalPages);
+  if (_docReadCancelled) return '';
+
+  const finalText = (t3Text && t3Text.trim().length > 50)
+    ? t3Text
+    : (t2Text && t2Text.trim().length > 50) ? t2Text : '';
+
+  if (finalText) {
+    setStage('ai', 'done');
+    setDocProgress(100, 'Done!', 'AI Vision transcription complete', '✅');
+    return finalText;
+  }
+
+  setStage('ai', 'error');
+  throw new Error('All extraction methods exhausted — document may be encrypted or image-only without readable content.');
+}
+
+async function handleDocUpload(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+  const name = file.name.toLowerCase();
+  _docReadCancelled = false;
+
+  document.getElementById('docProgressOverlay').classList.add('active');
+  // Reset stage pills
+  ['extract','ocr','ai'].forEach(s => setStage(s, ''));
+  setDocProgress(3, 'Opening Document...', file.name, '📄');
+
+  try {
+    let extractedText = '';
+
+    if (name.endsWith('.txt') || name.endsWith('.md')) {
+      setDocProgress(40, 'Reading Text File...', 'Loading...', '📝');
+      extractedText = await file.text();
+      setDocProgress(100, 'Done!', '', '✅');
+
+    } else if (name.endsWith('.pdf')) {
+      extractedText = await extractPDFText(file);
+
+    } else if (name.endsWith('.docx') || name.endsWith('.doc')) {
+      setDocProgress(20, 'Parsing Word Document...', 'Extracting content...', '📝');
+      const arrayBuffer = await file.arrayBuffer();
+      if (_docReadCancelled) return;
+      setDocProgress(60, 'Converting DOCX...', 'Processing paragraphs...', '📝');
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      extractedText = result.value || '';
+      setDocProgress(100, 'Done!', '', '✅');
+
+    } else {
+      extractedText = await file.text();
+      setDocProgress(100, 'Done!', '', '✅');
+    }
+
+    if (_docReadCancelled) return;
+    if (!extractedText || !extractedText.trim()) {
+      document.getElementById('docProgressOverlay').classList.remove('active');
+      showToast('⚠️ Could not extract text — file may be empty or encrypted');
+      input.value = '';
+      return;
+    }
+
+    await new Promise(r => setTimeout(r, 500));
+    document.getElementById('docProgressOverlay').classList.remove('active');
+    input.value = '';
+    launchReaderWithText(extractedText.trim(), file.name);
+
+  } catch (err) {
+    document.getElementById('docProgressOverlay').classList.remove('active');
+    input.value = '';
+    showToast('❌ ' + (err.message || 'Could not read file'));
+    console.error('[ReadDoc]', err);
+  }
+}
+
+function launchReaderWithText(text, docName) {
+  // Populate the reader exactly like startReadMode but from doc text
+  sentences = [];
+  const display = document.getElementById('readerTextDisplay');
+
+  // Update the back button header to show doc name
+  const topBar = document.querySelector('#readerScreen .reader-top');
+  if (topBar) {
+    const backBtn = topBar.querySelector('.back-btn');
+    if (backBtn) backBtn.textContent = '← ' + (docName ? docName.replace(/\.[^.]+$/, '') : 'Doc');
+    // Restore back button click to also clear doc state
+    backBtn.onclick = function() { stopAudio(); showScreen('uploadScreen'); };
+  }
+
+  display.innerHTML = formatTextToHTML(text);
+  showScreen('readerScreen');
+  currentSentenceIdx = 0;
+  initBgMusic();
+  playSequence();
+}
+
+// ──────────────────────────────────────────────────
 populateVoiceSelects();
 if (synth.onvoiceschanged !== undefined) {
   synth.onvoiceschanged = populateVoiceSelects;
