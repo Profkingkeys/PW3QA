@@ -400,6 +400,152 @@ textarea#userInput:focus{border-color:var(--blue);}
   max-width:100%;
   vertical-align:middle;
 }
+
+/* ═══════ MARKDOWN RENDERING STYLES ═══════ */
+/* Code Blocks (``` ... ```) - For ASCII art, diagrams, code */
+.reader-content pre.code-block {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin: 16px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.3);
+}
+.reader-content pre.code-block code {
+  font-family: 'JetBrains Mono', 'Courier New', Courier, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--white);
+  white-space: pre;
+  display: block;
+  tab-size: 4;
+  -moz-tab-size: 4;
+  word-wrap: normal;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+/* Inline code (`...`) */
+.reader-content code.inline-code {
+  font-family: 'JetBrains Mono', 'Courier New', Courier, monospace;
+  background: rgba(77,158,255,0.08);
+  border: 1px solid rgba(77,158,255,0.15);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 0.9em;
+  color: var(--blue);
+  white-space: nowrap;
+}
+
+/* Tables */
+.reader-content table.md-table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 100%;
+  margin: 16px 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--panel);
+}
+.reader-content table.md-table tr {
+  border-bottom: 1px solid var(--border);
+}
+.reader-content table.md-table tr:last-child {
+  border-bottom: none;
+}
+.reader-content table.md-table td {
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 14px;
+  border-right: 1px solid var(--border);
+}
+.reader-content table.md-table td:last-child {
+  border-right: none;
+}
+.reader-content table.md-table tr:first-child td {
+  background: var(--panel2);
+  color: var(--gold);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+/* Blockquotes */
+.reader-content blockquote {
+  border-left: 3px solid var(--gold);
+  padding-left: 16px;
+  margin: 16px 0;
+  color: var(--text);
+  font-style: italic;
+  background: rgba(240,180,41,0.03);
+  padding: 12px 16px;
+  border-radius: 0 8px 8px 0;
+}
+
+/* Horizontal Rules */
+.reader-content hr {
+  border: none;
+  height: 1px;
+  background: var(--border);
+  margin: 24px 0;
+}
+
+/* Headers in rendered markdown */
+.reader-content h1, .reader-content h2, .reader-content h3, 
+.reader-content h4, .reader-content h5, .reader-content h6 {
+  color: var(--gold);
+  font-weight: 800;
+  margin: 20px 0 12px 0;
+  line-height: 1.3;
+}
+.reader-content h1 { font-size: 24px; }
+.reader-content h2 { font-size: 21px; }
+.reader-content h3 { font-size: 18px; }
+.reader-content h4 { font-size: 16px; }
+.reader-content h5 { font-size: 15px; }
+.reader-content h6 { font-size: 14px; }
+
+/* Links */
+.reader-content a {
+  color: var(--blue);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(77,158,255,0.3);
+  transition: border-color 0.2s;
+}
+.reader-content a:hover {
+  border-bottom-color: var(--blue);
+}
+
+/* Strong and emphasis */
+.reader-content strong {
+  font-weight: 700;
+  color: var(--white);
+}
+.reader-content em {
+  font-style: italic;
+  color: var(--text);
+}
+
+/* Lists */
+.reader-content ul {
+  list-style-type: disc;
+  padding-left: 26px;
+  margin: 12px 0;
+}
+.reader-content ol {
+  list-style-type: decimal;
+  padding-left: 26px;
+  margin: 12px 0;
+}
+.reader-content li {
+  margin-bottom: 8px;
+  line-height: 1.8;
+}
 /* Table stacked cards */
 .reader-table-wrap{
   width:100%;max-width:100%;margin:16px 0;display:flex;flex-direction:column;gap:10px;
@@ -1260,13 +1406,39 @@ function closeExtract() {
 // ═══════════════════════════════════════════════
 function cleanDisplay(text) {
   if (!text) return '';
-  // 1. Normalize Unicode math characters first (before renderMath)
-  let t = renderMath(normalizeMathUnicode(String(text)));
-  // 2. Markdown → HTML (after math rendering)
-  t = t.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-  t = t.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  
+  // 1. Handle inline code FIRST (before other processing)
+  let t = String(text);
+  
+  // Extract inline code blocks to preserve them
+  const inlineCodeBlocks = [];
+  t = t.replace(/`([^`]+?)`/g, function(match, code) {
+    const index = inlineCodeBlocks.length;
+    inlineCodeBlocks.push(code);
+    return `___INLINECODE_${index}___`;
+  });
+  
+  // 2. Normalize Unicode math characters (before renderMath)
+  t = renderMath(normalizeMathUnicode(t));
+  
+  // 3. Markdown → HTML (bold, italic)
+  t = t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  t = t.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  
+  // Clean up remaining * and #
   t = t.replace(/\*/g, '');
   t = t.replace(/#/g, '');
+  
+  // 4. Restore inline code blocks
+  inlineCodeBlocks.forEach((code, index) => {
+    // Escape HTML in inline code
+    const escaped = code
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    t = t.replace(`___INLINECODE_${index}___`, `<code class="inline-code">${escaped}</code>`);
+  });
+  
   return t.trim();
 }
 
@@ -1299,10 +1471,7 @@ function isTableSep(line) { return /^\|[\s\-:|]+\|/.test(line); }
 
 function formatTextToHTML(rawText) {
   sentences = [];
-  let html = '';
   let sid = 0;
-  const lines = rawText.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
-  let i = 0;
 
   function addSentence(speechText, displayHTML, tag, extraStyle) {
     const idx = sid++;
@@ -1313,16 +1482,57 @@ function formatTextToHTML(rawText) {
   }
 
   function splitSentences(text) {
-    // Only split at REAL sentence boundaries: punctuation followed by whitespace + uppercase letter.
-    // This prevents breaking on decimal points (0.693, 0.2, 0.026), equations, subscripts, etc.
     var marked = text.replace(/([.!?])\s+([A-Z])/g, '$1\x00$2');
     var parts = marked.split('\x00');
     return parts.map(function(p){ return p.trim(); }).filter(function(p){ return p.length > 1; });
   }
 
+  // ═══ STEP 1: Extract code blocks FIRST (before any processing) ═══
+  const codeBlocks = [];
+  let processedText = rawText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  
+  // Match ```language\n...code...\n``` blocks
+  processedText = processedText.replace(/```([^\n]*)\n([\s\S]*?)```/g, function(match, lang, code) {
+    const index = codeBlocks.length;
+    codeBlocks.push({ lang: lang.trim(), code: code });
+    return `\n___CODEBLOCK_${index}___\n`;
+  });
+
+  // ═══ STEP 2: Process line by line (original logic) ═══
+  let html = '';
+  const lines = processedText.split('\n');
+  let i = 0;
+
   while (i < lines.length) {
     let line = lines[i].trimEnd();
     const trimmed = line.trim();
+
+    // Check if this is a code block placeholder
+    const codeBlockMatch = trimmed.match(/^___CODEBLOCK_(\d+)___$/);
+    if (codeBlockMatch) {
+      const blockIndex = parseInt(codeBlockMatch[1]);
+      const block = codeBlocks[blockIndex];
+      if (block) {
+        // Escape HTML in code
+        const escapedCode = block.code
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+        const langClass = block.lang ? ` class="language-${block.lang}"` : '';
+        
+        // Add as a single readable sentence
+        const codePreview = block.code.substring(0, 100).replace(/\n/g, ' ') + '...';
+        const speechText = `Code block: ${codePreview}`;
+        const idx = sid++;
+        sentences.push(speechText);
+        
+        html += `<div id="sent-${idx}" class="reader-sentence" onclick="clickToRead(${idx})">`;
+        html += `<pre class="code-block"><code${langClass}>${escapedCode}</code></pre>`;
+        html += '</div>';
+      }
+      i++;
+      continue;
+    }
 
     if (trimmed === '') {
       html += '<div class="reader-divider"></div>';
@@ -1417,7 +1627,7 @@ function formatTextToHTML(rawText) {
       html += '</ul>'; continue;
     }
 
-    // Regular paragraph — split on ORIGINAL trimmed text so math/formatting is preserved for display
+    // Regular paragraph
     html += '<p>';
     const displayParts = splitSentences(trimmed);
     if (displayParts.length === 0) {
@@ -1430,6 +1640,7 @@ function formatTextToHTML(rawText) {
     html += '</p>';
     i++;
   }
+  
   return html;
 }
 
