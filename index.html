@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -386,6 +387,8 @@ textarea#userInput:focus{border-color:var(--blue);}
 .reader-content li{margin-bottom:9px;line-height:1.9;word-break:break-word;overflow-wrap:anywhere;}
 .reader-content li.reader-sentence{display:list-item;}
 .reader-heading{font-weight:800;color:var(--gold);margin:20px 0 8px;line-height:1.4;word-break:break-word;}
+.reader-sentence strong { color: var(--gold); }
+.reader-sentence em { color: var(--gold2); }
 /* Math expression styling */
 .math-expr{
   font-family:'JetBrains Mono',monospace;
@@ -524,11 +527,11 @@ textarea#userInput:focus{border-color:var(--blue);}
 /* Strong and emphasis */
 .reader-content strong {
   font-weight: 700;
-  color: var(--white);
+  color: var(--gold);
 }
 .reader-content em {
   font-style: italic;
-  color: var(--text);
+  color: var(--gold2);
 }
 
 /* Lists */
@@ -1543,17 +1546,23 @@ function formatTextToHTML(rawText) {
       const level = trimmed.match(/^(#{1,4})/)[1].length;
       const content = trimmed.replace(/^#{1,4}\s*/, '');
       const size = level === 1 ? '22px' : level === 2 ? '19px' : '17px';
-      html += `<div class="reader-heading" style="font-size:${size};">${cleanDisplay(content)}</div>`;
+      const idx = sid++;
+      sentences.push(cleanSpeech(content));
+      html += `<div id="sent-${idx}" class="reader-sentence reader-heading" style="font-size:${size};" onclick="clickToRead(${idx})">${cleanDisplay(content)}</div>`;
       i++; continue;
     }
 
     if (trimmed.length <= 80 && trimmed === trimmed.toUpperCase() && /[A-Z]/.test(trimmed) && !/[a-z]/.test(trimmed)) {
-      html += `<div class="reader-heading" style="font-size:17px;letter-spacing:0.5px;">${cleanDisplay(trimmed)}</div>`;
+      const idx = sid++;
+      sentences.push(cleanSpeech(trimmed));
+      html += `<div id="sent-${idx}" class="reader-sentence reader-heading" style="font-size:17px;letter-spacing:0.5px;" onclick="clickToRead(${idx})">${cleanDisplay(trimmed)}</div>`;
       i++; continue;
     }
 
     if (/^[A-Z][^.!?]{0,60}:$/.test(trimmed) && !trimmed.includes('|')) {
-      html += `<div class="reader-heading" style="font-size:16px;">${cleanDisplay(trimmed)}</div>`;
+      const idx = sid++;
+      sentences.push(cleanSpeech(trimmed));
+      html += `<div id="sent-${idx}" class="reader-sentence reader-heading" style="font-size:16px;" onclick="clickToRead(${idx})">${cleanDisplay(trimmed)}</div>`;
       i++; continue;
     }
 
